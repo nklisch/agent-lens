@@ -1,5 +1,7 @@
+import { resolve as resolvePath } from "node:path";
 import { defineCommand } from "citty";
 import { listAdapters, registerAllAdapters } from "../../adapters/registry.js";
+import { listConfigurations, parseLaunchJson } from "../../core/launch-json.js";
 import { listDetectors, registerAllDetectors } from "../../frameworks/index.js";
 import type { OutputMode } from "../format.js";
 import { resolveOutputMode } from "../format.js";
@@ -19,6 +21,11 @@ export interface DoctorResult {
 		id: string;
 		displayName: string;
 		adapterId: string;
+	}>;
+	launchConfigs?: Array<{
+		name: string;
+		type: string;
+		request: string;
 	}>;
 }
 
@@ -47,6 +54,12 @@ export async function runDoctorChecks(): Promise<DoctorResult> {
 				version = await getNodeVersion();
 			} else if (adapter.id === "go") {
 				version = await getDlvVersion();
+			} else if (adapter.id === "rust") {
+				version = await getCargoVersion();
+			} else if (adapter.id === "java") {
+				version = await getJavacVersion();
+			} else if (adapter.id === "cpp") {
+				version = await getGdbVersion();
 			}
 			adapterResults.push({
 				id: adapter.id,
@@ -71,7 +84,14 @@ export async function runDoctorChecks(): Promise<DoctorResult> {
 		adapterId: d.adapterId,
 	}));
 
-	return { platform, runtime, runtimeVersion, adapters: adapterResults, frameworks: frameworkResults };
+	// Check for .vscode/launch.json in cwd
+	let launchConfigs: DoctorResult["launchConfigs"];
+	const launchJson = await parseLaunchJson(resolvePath(process.cwd(), ".vscode/launch.json"));
+	if (launchJson) {
+		launchConfigs = listConfigurations(launchJson);
+	}
+
+	return { platform, runtime, runtimeVersion, adapters: adapterResults, frameworks: frameworkResults, launchConfigs };
 }
 
 async function getPythonDebugpyVersion(): Promise<string | undefined> {
@@ -148,6 +168,78 @@ async function getDlvVersion(): Promise<string | undefined> {
 	}
 }
 
+async function getCargoVersion(): Promise<string | undefined> {
+	try {
+		const { spawn } = await import("node:child_process");
+		const result = await new Promise<string>((resolve, reject) => {
+			const proc = spawn("cargo", ["--version"], { stdio: "pipe" });
+			let stdout = "";
+			proc.stdout.on("data", (chunk: Buffer) => {
+				stdout += chunk.toString();
+			});
+			proc.on("close", (code) => {
+				if (code === 0) resolve(stdout.trim());
+				else reject(new Error("Non-zero exit"));
+			});
+			proc.on("error", reject);
+		});
+		// Parse "cargo 1.75.0 (..." => "1.75.0"
+		const match = result.match(/cargo\s+(\S+)/);
+		return match ? match[1] : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+async function getJavacVersion(): Promise<string | undefined> {
+	try {
+		const { spawn } = await import("node:child_process");
+		const result = await new Promise<string>((resolve, reject) => {
+			const proc = spawn("javac", ["-version"], { stdio: "pipe" });
+			let output = "";
+			proc.stdout.on("data", (chunk: Buffer) => {
+				output += chunk.toString();
+			});
+			proc.stderr.on("data", (chunk: Buffer) => {
+				output += chunk.toString();
+			});
+			proc.on("close", (code) => {
+				if (code === 0) resolve(output.trim());
+				else reject(new Error("Non-zero exit"));
+			});
+			proc.on("error", reject);
+		});
+		// Parse "javac 17.0.8" => "17.0.8"
+		const match = result.match(/javac\s+(\S+)/);
+		return match ? match[1] : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+async function getGdbVersion(): Promise<string | undefined> {
+	try {
+		const { spawn } = await import("node:child_process");
+		const result = await new Promise<string>((resolve, reject) => {
+			const proc = spawn("gdb", ["--version"], { stdio: "pipe" });
+			let stdout = "";
+			proc.stdout.on("data", (chunk: Buffer) => {
+				stdout += chunk.toString();
+			});
+			proc.on("close", (code) => {
+				if (code === 0) resolve(stdout.trim());
+				else reject(new Error("Non-zero exit"));
+			});
+			proc.on("error", reject);
+		});
+		// Parse "GNU gdb ... 14.1" => "14.1"
+		const match = result.match(/GNU gdb[^\d]*(\d+\.\d+)/);
+		return match ? match[1] : result.split("\n")[0] || undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 /**
  * Format doctor results for the chosen output mode.
  */
@@ -171,6 +263,17 @@ export function formatDoctor(result: DoctorResult, mode: OutputMode): string {
 	lines.push("", "Framework Detectors:");
 	for (const fw of result.frameworks) {
 		lines.push(`  ${fw.displayName.padEnd(24)}(${fw.adapterId})`);
+	}
+
+	if (result.launchConfigs !== undefined) {
+		lines.push("", "launch.json Configurations:");
+		if (result.launchConfigs.length === 0) {
+			lines.push("  (none found)");
+		} else {
+			for (const cfg of result.launchConfigs) {
+				lines.push(`  ${cfg.name.padEnd(32)}[${cfg.type}/${cfg.request}]`);
+			}
+		}
 	}
 
 	return lines.join("\n");

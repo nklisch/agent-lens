@@ -1,7 +1,10 @@
 import type { DebugAdapter } from "./base.js";
+import { CppAdapter } from "./cpp.js";
 import { GoAdapter } from "./go.js";
+import { JavaAdapter } from "./java.js";
 import { NodeAdapter } from "./node.js";
 import { PythonAdapter } from "./python.js";
+import { RustAdapter } from "./rust.js";
 
 const adapters = new Map<string, DebugAdapter>();
 
@@ -29,6 +32,9 @@ export function registerAllAdapters(): void {
 	registerAdapter(new PythonAdapter());
 	registerAdapter(new NodeAdapter());
 	registerAdapter(new GoAdapter());
+	registerAdapter(new RustAdapter());
+	registerAdapter(new JavaAdapter());
+	registerAdapter(new CppAdapter());
 }
 
 export function listAdapters(): DebugAdapter[] {

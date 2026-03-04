@@ -1,4 +1,6 @@
+import { resolve as resolvePath } from "node:path";
 import { defineCommand } from "citty";
+import { configToOptions, listConfigurations, parseLaunchJson } from "../../core/launch-json.js";
 import { DaemonClient, ensureDaemon } from "../../daemon/client.js";
 import type { BreakpointsListPayload, BreakpointsResultPayload, LaunchResultPayload, StatusResultPayload, StopResultPayload, ThreadInfoPayload, ViewportPayload } from "../../daemon/protocol.js";
 import { getDaemonSocketPath } from "../../daemon/protocol.js";
@@ -111,7 +113,7 @@ export const launchCommand = defineCommand({
 		command: {
 			type: "positional",
 			description: "Command to debug, e.g. 'python app.py' or 'pytest tests/'",
-			required: true,
+			required: false,
 		},
 		break: {
 			type: "string",
@@ -131,6 +133,15 @@ export const launchCommand = defineCommand({
 			description: "Pause on first executable line",
 			default: false,
 		},
+		config: {
+			type: "string",
+			description: "Path to launch.json file (default: .vscode/launch.json)",
+		},
+		"config-name": {
+			type: "string",
+			description: "Name of the configuration to use from launch.json",
+			alias: "C",
+		},
 		...globalArgs,
 	},
 	async run({ args }) {
@@ -138,17 +149,74 @@ export const launchCommand = defineCommand({
 			args,
 			async (client, _sessionId, mode) => {
 				const breakpoints = args.break ? [parseBreakpointString(args.break)] : undefined;
-				const result = await client.call<LaunchResultPayload>("session.launch", {
-					command: args.command,
-					language: args.language,
-					framework: args.framework,
-					breakpoints: breakpoints?.map((fb) => ({
-						file: fb.file,
-						breakpoints: fb.breakpoints,
-					})),
-					stopOnEntry: args["stop-on-entry"],
-				});
-				process.stdout.write(`${formatLaunch(result, mode)}\n`);
+
+				if (args.config || args["config-name"]) {
+					// Load from launch.json
+					const configPath = args.config ? resolvePath(args.config) : resolvePath(process.cwd(), ".vscode/launch.json");
+					const launchJson = await parseLaunchJson(configPath);
+					if (!launchJson) {
+						throw new Error(`launch.json not found at: ${configPath}`);
+					}
+
+					let configEntry: (typeof launchJson.configurations)[0];
+					if (args["config-name"]) {
+						const found = launchJson.configurations.find((c) => c.name === args["config-name"]);
+						if (!found) {
+							const available = listConfigurations(launchJson)
+								.map((c) => `  "${c.name}"`)
+								.join("\n");
+							throw new Error(`Configuration "${args["config-name"]}" not found. Available:\n${available}`);
+						}
+						configEntry = found;
+					} else {
+						if (launchJson.configurations.length === 1) {
+							configEntry = launchJson.configurations[0];
+						} else {
+							const available = listConfigurations(launchJson)
+								.map((c) => `  "${c.name}"`)
+								.join("\n");
+							throw new Error(`Multiple configurations found. Use --config-name to select one:\n${available}`);
+						}
+					}
+
+					const converted = configToOptions(configEntry, process.cwd());
+					if (converted.type === "attach") {
+						const result = await client.call<LaunchResultPayload>("session.attach", {
+							language: args.language ?? converted.options.language,
+							pid: converted.options.pid,
+							port: converted.options.port,
+							host: converted.options.host,
+							breakpoints: breakpoints?.map((fb) => ({ file: fb.file, breakpoints: fb.breakpoints })),
+						});
+						process.stdout.write(`${formatLaunch(result, mode)}\n`);
+					} else {
+						const result = await client.call<LaunchResultPayload>("session.launch", {
+							command: args.command ?? converted.options.command,
+							language: args.language ?? converted.options.language,
+							framework: args.framework,
+							breakpoints: breakpoints?.map((fb) => ({ file: fb.file, breakpoints: fb.breakpoints })),
+							stopOnEntry: args["stop-on-entry"],
+							cwd: converted.options.cwd,
+							env: converted.options.env,
+						});
+						process.stdout.write(`${formatLaunch(result, mode)}\n`);
+					}
+				} else {
+					if (!args.command) {
+						throw new Error('Usage: agent-lens launch "<command>" or agent-lens launch --config-name "<name>"');
+					}
+					const result = await client.call<LaunchResultPayload>("session.launch", {
+						command: args.command,
+						language: args.language,
+						framework: args.framework,
+						breakpoints: breakpoints?.map((fb) => ({
+							file: fb.file,
+							breakpoints: fb.breakpoints,
+						})),
+						stopOnEntry: args["stop-on-entry"],
+					});
+					process.stdout.write(`${formatLaunch(result, mode)}\n`);
+				}
 			},
 			{ needsSession: false },
 		);

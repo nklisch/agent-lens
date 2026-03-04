@@ -1,5 +1,7 @@
+import { resolve as resolvePath } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { configToOptions, parseLaunchJson } from "../../core/launch-json.js";
 import type { SessionManager } from "../../core/session-manager.js";
 
 /**
@@ -88,16 +90,70 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 				.optional()
 				.describe("Override default viewport rendering parameters"),
 			stop_on_entry: z.boolean().optional().describe("Pause on the first executable line. Default: false"),
+			launch_config: z
+				.object({
+					path: z.string().optional().describe("Path to launch.json file (default: .vscode/launch.json)"),
+					name: z.string().optional().describe("Configuration name to use from launch.json"),
+				})
+				.optional()
+				.describe("Use a VS Code launch.json configuration instead of a command string"),
 		},
-		async ({ command, language, framework, breakpoints, cwd, env, viewport_config, stop_on_entry }) => {
+		async ({ command, language, framework, breakpoints, cwd, env, viewport_config, stop_on_entry, launch_config }) => {
 			try {
+				let resolvedCommand = command;
+				let resolvedLanguage = language;
+				let resolvedCwd = cwd;
+				let resolvedEnv = env;
+
+				if (launch_config) {
+					const configPath = launch_config.path ? resolvePath(launch_config.path) : resolvePath(process.cwd(), ".vscode/launch.json");
+					const launchJson = await parseLaunchJson(configPath);
+					if (!launchJson) {
+						return { content: [{ type: "text" as const, text: `Error: launch.json not found at: ${configPath}` }] };
+					}
+
+					let configEntry = launchJson.configurations[0];
+					if (launch_config.name) {
+						const found = launchJson.configurations.find((c) => c.name === launch_config.name);
+						if (!found) {
+							const available = launchJson.configurations.map((c) => `  "${c.name}"`).join("\n");
+							return { content: [{ type: "text" as const, text: `Error: Configuration "${launch_config.name}" not found. Available:\n${available}` }] };
+						}
+						configEntry = found;
+					} else if (launchJson.configurations.length === 0) {
+						return { content: [{ type: "text" as const, text: "Error: No configurations found in launch.json" }] };
+					}
+
+					if (!configEntry) {
+						return { content: [{ type: "text" as const, text: "Error: No configuration found in launch.json" }] };
+					}
+
+					const converted = configToOptions(configEntry, process.cwd());
+					if (converted.type === "attach") {
+						const result = await sessionManager.attach({
+							...converted.options,
+							language: language ?? converted.options.language,
+						});
+						const text = `Session: ${result.sessionId}\nStatus: ${result.status}\nAttached via launch.json config.`;
+						return { content: [{ type: "text" as const, text }] };
+					}
+					resolvedCommand = command ?? converted.options.command;
+					resolvedLanguage = language ?? converted.options.language;
+					resolvedCwd = cwd ?? converted.options.cwd;
+					resolvedEnv = env ?? converted.options.env;
+				}
+
+				if (!resolvedCommand) {
+					return { content: [{ type: "text" as const, text: "Error: Either 'command' or 'launch_config' must be provided" }] };
+				}
+
 				const result = await sessionManager.launch({
-					command,
-					language,
+					command: resolvedCommand,
+					language: resolvedLanguage,
 					framework,
 					breakpoints,
-					cwd,
-					env,
+					cwd: resolvedCwd,
+					env: resolvedEnv,
 					viewportConfig: mapViewportConfig(viewport_config),
 					stopOnEntry: stop_on_entry,
 				});
