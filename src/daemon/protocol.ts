@@ -1,0 +1,269 @@
+import { mkdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { z } from "zod";
+
+// --- JSON-RPC 2.0 Base Types ---
+
+export interface JsonRpcRequest {
+	jsonrpc: "2.0";
+	id: number;
+	method: string;
+	params?: Record<string, unknown>;
+}
+
+export interface JsonRpcResponse {
+	jsonrpc: "2.0";
+	id: number;
+	result?: unknown;
+	error?: JsonRpcError;
+}
+
+export interface JsonRpcError {
+	code: number;
+	message: string;
+	data?: unknown;
+}
+
+// Standard JSON-RPC error codes
+export const RPC_PARSE_ERROR = -32700;
+export const RPC_INVALID_REQUEST = -32600;
+export const RPC_METHOD_NOT_FOUND = -32601;
+export const RPC_INVALID_PARAMS = -32602;
+export const RPC_INTERNAL_ERROR = -32603;
+
+// Application error codes (agent-lens specific)
+export const RPC_SESSION_NOT_FOUND = -32000;
+export const RPC_SESSION_STATE_ERROR = -32001;
+export const RPC_SESSION_LIMIT_ERROR = -32002;
+export const RPC_ADAPTER_ERROR = -32003;
+export const RPC_LAUNCH_ERROR = -32004;
+
+// --- RPC Method Definitions ---
+
+/**
+ * Maps each RPC method name to its params and result types.
+ * The daemon dispatches based on method name and validates params with Zod.
+ */
+export type RpcMethods = {
+	// Lifecycle
+	"session.launch": { params: LaunchParams; result: LaunchResultPayload };
+	"session.stop": { params: SessionIdParams; result: StopResultPayload };
+	"session.status": { params: SessionIdParams; result: StatusResultPayload };
+
+	// Execution control
+	"session.continue": { params: ContinueParams; result: ViewportPayload };
+	"session.step": { params: StepParams; result: ViewportPayload };
+	"session.runTo": { params: RunToParams; result: ViewportPayload };
+
+	// Breakpoints
+	"session.setBreakpoints": { params: SetBreakpointsParams; result: BreakpointsResultPayload };
+	"session.setExceptionBreakpoints": { params: SetExceptionBreakpointsParams; result: undefined };
+	"session.listBreakpoints": { params: SessionIdParams; result: BreakpointsListPayload };
+
+	// State inspection
+	"session.evaluate": { params: EvaluateParams; result: string };
+	"session.variables": { params: VariablesParams; result: string };
+	"session.stackTrace": { params: StackTraceParams; result: string };
+	"session.source": { params: SourceParams; result: string };
+
+	// Session intelligence
+	"session.watch": { params: WatchParams; result: string[] };
+	"session.sessionLog": { params: SessionLogParams; result: string };
+	"session.output": { params: OutputParams; result: string };
+
+	// Daemon control
+	"daemon.ping": { params: undefined; result: { uptime: number; sessions: number } };
+	"daemon.shutdown": { params: undefined; result: undefined };
+	"daemon.sessions": {
+		params: undefined;
+		result: Array<{ id: string; status: string; language: string; actionCount: number }>;
+	};
+};
+
+// --- Param Schemas (Zod) ---
+
+export const SessionIdParamsSchema = z.object({
+	sessionId: z.string(),
+});
+export type SessionIdParams = z.infer<typeof SessionIdParamsSchema>;
+
+export const LaunchParamsSchema = z.object({
+	command: z.string(),
+	language: z.string().optional(),
+	breakpoints: z
+		.array(
+			z.object({
+				file: z.string(),
+				breakpoints: z.array(
+					z.object({
+						line: z.number(),
+						condition: z.string().optional(),
+						hitCondition: z.string().optional(),
+						logMessage: z.string().optional(),
+					}),
+				),
+			}),
+		)
+		.optional(),
+	cwd: z.string().optional(),
+	env: z.record(z.string(), z.string()).optional(),
+	viewportConfig: z
+		.object({
+			sourceContextLines: z.number().optional(),
+			stackDepth: z.number().optional(),
+			localsMaxDepth: z.number().optional(),
+			localsMaxItems: z.number().optional(),
+			stringTruncateLength: z.number().optional(),
+			collectionPreviewItems: z.number().optional(),
+		})
+		.optional(),
+	stopOnEntry: z.boolean().optional(),
+});
+export type LaunchParams = z.infer<typeof LaunchParamsSchema>;
+
+export const ContinueParamsSchema = z.object({
+	sessionId: z.string(),
+	timeoutMs: z.number().optional(),
+});
+export type ContinueParams = z.infer<typeof ContinueParamsSchema>;
+
+export const StepParamsSchema = z.object({
+	sessionId: z.string(),
+	direction: z.enum(["over", "into", "out"]),
+	count: z.number().optional(),
+});
+export type StepParams = z.infer<typeof StepParamsSchema>;
+
+export const RunToParamsSchema = z.object({
+	sessionId: z.string(),
+	file: z.string(),
+	line: z.number(),
+	timeoutMs: z.number().optional(),
+});
+export type RunToParams = z.infer<typeof RunToParamsSchema>;
+
+export const SetBreakpointsParamsSchema = z.object({
+	sessionId: z.string(),
+	file: z.string(),
+	breakpoints: z.array(
+		z.object({
+			line: z.number(),
+			condition: z.string().optional(),
+			hitCondition: z.string().optional(),
+			logMessage: z.string().optional(),
+		}),
+	),
+});
+export type SetBreakpointsParams = z.infer<typeof SetBreakpointsParamsSchema>;
+
+export const SetExceptionBreakpointsParamsSchema = z.object({
+	sessionId: z.string(),
+	filters: z.array(z.string()),
+});
+export type SetExceptionBreakpointsParams = z.infer<typeof SetExceptionBreakpointsParamsSchema>;
+
+export const EvaluateParamsSchema = z.object({
+	sessionId: z.string(),
+	expression: z.string(),
+	frameIndex: z.number().optional(),
+	maxDepth: z.number().optional(),
+});
+export type EvaluateParams = z.infer<typeof EvaluateParamsSchema>;
+
+export const VariablesParamsSchema = z.object({
+	sessionId: z.string(),
+	scope: z.enum(["local", "global", "closure", "all"]).optional(),
+	frameIndex: z.number().optional(),
+	filter: z.string().optional(),
+	maxDepth: z.number().optional(),
+});
+export type VariablesParams = z.infer<typeof VariablesParamsSchema>;
+
+export const StackTraceParamsSchema = z.object({
+	sessionId: z.string(),
+	maxFrames: z.number().optional(),
+	includeSource: z.boolean().optional(),
+});
+export type StackTraceParams = z.infer<typeof StackTraceParamsSchema>;
+
+export const SourceParamsSchema = z.object({
+	sessionId: z.string(),
+	file: z.string(),
+	startLine: z.number().optional(),
+	endLine: z.number().optional(),
+});
+export type SourceParams = z.infer<typeof SourceParamsSchema>;
+
+export const WatchParamsSchema = z.object({
+	sessionId: z.string(),
+	expressions: z.array(z.string()),
+});
+export type WatchParams = z.infer<typeof WatchParamsSchema>;
+
+export const SessionLogParamsSchema = z.object({
+	sessionId: z.string(),
+	format: z.enum(["summary", "detailed"]).optional(),
+});
+export type SessionLogParams = z.infer<typeof SessionLogParamsSchema>;
+
+export const OutputParamsSchema = z.object({
+	sessionId: z.string(),
+	stream: z.enum(["stdout", "stderr", "both"]).optional(),
+	sinceAction: z.number().optional(),
+});
+export type OutputParams = z.infer<typeof OutputParamsSchema>;
+
+// --- Result Payloads ---
+
+export interface LaunchResultPayload {
+	sessionId: string;
+	viewport?: string;
+	status: string;
+}
+
+export interface StopResultPayload {
+	duration: number;
+	actionCount: number;
+}
+
+export interface StatusResultPayload {
+	status: string;
+	viewport?: string;
+}
+
+export interface ViewportPayload {
+	viewport: string;
+}
+
+export interface BreakpointsResultPayload {
+	breakpoints: Array<{ line?: number; verified: boolean; message?: string }>;
+}
+
+export interface BreakpointsListPayload {
+	files: Record<string, Array<{ line: number; condition?: string; hitCondition?: string; logMessage?: string }>>;
+}
+
+// --- Socket Path Resolution ---
+
+/**
+ * Resolve the daemon socket path.
+ * Uses $XDG_RUNTIME_DIR/agent-lens.sock if available,
+ * falls back to ~/.agent-lens/agent-lens.sock.
+ */
+export function getDaemonSocketPath(): string {
+	const xdgRuntime = process.env.XDG_RUNTIME_DIR;
+	if (xdgRuntime) {
+		return join(xdgRuntime, "agent-lens.sock");
+	}
+	const dir = join(homedir(), ".agent-lens");
+	mkdirSync(dir, { recursive: true });
+	return join(dir, "agent-lens.sock");
+}
+
+/**
+ * Resolve the daemon PID file path (socket path + ".pid").
+ */
+export function getDaemonPidPath(): string {
+	return `${getDaemonSocketPath()}.pid`;
+}

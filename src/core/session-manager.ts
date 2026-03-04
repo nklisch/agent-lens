@@ -543,6 +543,18 @@ export class SessionManager {
 	}
 
 	/**
+	 * List all active sessions with their status.
+	 */
+	listSessions(): Array<{ id: string; status: string; language: string; actionCount: number }> {
+		return Array.from(this.sessions.values()).map((session) => ({
+			id: session.id,
+			status: session.state,
+			language: session.language,
+			actionCount: session.actionCount,
+		}));
+	}
+
+	/**
 	 * Add watch expressions to the session.
 	 */
 	addWatchExpressions(sessionId: string, expressions: string[]): string[] {

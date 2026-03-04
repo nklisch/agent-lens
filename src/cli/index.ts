@@ -1,6 +1,24 @@
 #!/usr/bin/env bun
 import { defineCommand, runMain } from "citty";
-import { launchCommand } from "./commands/index.js";
+import {
+	breakCommand,
+	breakpointsCommand,
+	continueCommand,
+	doctorCommand,
+	evalCommand,
+	launchCommand,
+	logCommand,
+	outputCommand,
+	runToCommand,
+	skillCommand,
+	sourceCommand,
+	stackCommand,
+	statusCommand,
+	stepCommand,
+	stopCommand,
+	varsCommand,
+	watchCommand,
+} from "./commands/index.js";
 
 const main = defineCommand({
 	meta: {
@@ -10,9 +28,26 @@ const main = defineCommand({
 	},
 	subCommands: {
 		launch: launchCommand,
-		// TODO: stop, status, continue, step, run-to,
-		// break, breakpoints, eval, vars, stack, source,
-		// watch, log, output, doctor
+		stop: stopCommand,
+		status: statusCommand,
+		continue: continueCommand,
+		step: stepCommand,
+		"run-to": runToCommand,
+		break: breakCommand,
+		breakpoints: breakpointsCommand,
+		eval: evalCommand,
+		vars: varsCommand,
+		stack: stackCommand,
+		source: sourceCommand,
+		watch: watchCommand,
+		log: logCommand,
+		output: outputCommand,
+		doctor: doctorCommand,
+		skill: skillCommand,
+		// Hidden: internal daemon entry point
+		_daemon: async () => {
+			await import("../daemon/entry.js");
+		},
 	},
 });
 
