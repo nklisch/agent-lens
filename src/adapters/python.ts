@@ -5,7 +5,7 @@ import type { Socket } from "node:net";
 import { isAbsolute, resolve as resolvePath } from "node:path";
 import { LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, connectTCP } from "./helpers.js";
+import { allocatePort, connectTCP, gracefulDispose } from "./helpers.js";
 
 export class PythonAdapter implements DebugAdapter {
 	id = "python";
@@ -153,25 +153,9 @@ export class PythonAdapter implements DebugAdapter {
 	 * Kill the child process and close the socket.
 	 */
 	async dispose(): Promise<void> {
-		if (this.socket) {
-			this.socket.destroy();
-			this.socket = null;
-		}
-		if (this.process) {
-			const proc = this.process;
-			this.process = null;
-			proc.kill("SIGTERM");
-			await new Promise<void>((resolve) => {
-				const timeout = setTimeout(() => {
-					proc.kill("SIGKILL");
-					resolve();
-				}, 2_000);
-				proc.once("close", () => {
-					clearTimeout(timeout);
-					resolve();
-				});
-			});
-		}
+		await gracefulDispose(this.socket, this.process);
+		this.socket = null;
+		this.process = null;
 	}
 }
 

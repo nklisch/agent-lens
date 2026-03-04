@@ -450,16 +450,13 @@ export class DaemonServer {
  * Entry point for spawning the daemon as a background process.
  */
 export async function startDaemon(): Promise<void> {
-	const { PythonAdapter } = await import("../adapters/python.js");
-	const { registerAdapter } = await import("../adapters/registry.js");
-	const { SessionManager } = await import("../core/session-manager.js");
-	const { ResourceLimitsSchema } = await import("../core/types.js");
+	const { registerAllAdapters } = await import("../adapters/registry.js");
+	const { createSessionManager } = await import("../core/session-manager.js");
+	const { setupGracefulShutdown } = await import("../core/shutdown.js");
 	const { getDaemonPidPath, getDaemonSocketPath } = await import("./protocol.js");
 
-	registerAdapter(new PythonAdapter());
-
-	const limits = ResourceLimitsSchema.parse({});
-	const sessionManager = new SessionManager(limits);
+	registerAllAdapters();
+	const sessionManager = createSessionManager();
 
 	const server = new DaemonServer(sessionManager, {
 		socketPath: getDaemonSocketPath(),
@@ -468,14 +465,5 @@ export async function startDaemon(): Promise<void> {
 	});
 
 	await server.start();
-
-	process.on("SIGINT", async () => {
-		await server.shutdown();
-		process.exit(0);
-	});
-
-	process.on("SIGTERM", async () => {
-		await server.shutdown();
-		process.exit(0);
-	});
+	setupGracefulShutdown(() => server.shutdown());
 }

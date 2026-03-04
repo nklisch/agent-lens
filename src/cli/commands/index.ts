@@ -13,6 +13,7 @@ import {
 	formatStop,
 	formatVariables,
 	formatViewport,
+	formatWatchExpressions,
 	resolveOutputMode,
 } from "../format.js";
 import { parseBreakpointString, parseLocation, parseSourceRange } from "../parsers.js";
@@ -452,12 +453,7 @@ export const watchCommand = defineCommand({
 		await runCommand(args, async (client, sessionId, mode) => {
 			const expressions = collectExpressions(args.expressions, args as Record<string, unknown>);
 			const result = await client.call<string[]>("session.watch", { sessionId, expressions });
-			if (mode === "json") {
-				process.stdout.write(`${JSON.stringify({ watchExpressions: result }, null, 2)}\n`);
-			} else {
-				process.stdout.write(`Watch expressions (${result.length} total):\n`);
-				for (const expr of result) process.stdout.write(`  ${expr}\n`);
-			}
+			process.stdout.write(`${formatWatchExpressions(result, mode)}\n`);
 		});
 	},
 });
@@ -476,12 +472,7 @@ export const unwatchCommand = defineCommand({
 		await runCommand(args, async (client, sessionId, mode) => {
 			const expressions = collectExpressions(args.expressions, args as Record<string, unknown>);
 			const result = await client.call<string[]>("session.unwatch", { sessionId, expressions });
-			if (mode === "json") {
-				process.stdout.write(`${JSON.stringify({ watchExpressions: result }, null, 2)}\n`);
-			} else {
-				process.stdout.write(`Watch expressions (${result.length} total):\n`);
-				for (const expr of result) process.stdout.write(`  ${expr}\n`);
-			}
+			process.stdout.write(`${formatWatchExpressions(result, mode)}\n`);
 		});
 	},
 });

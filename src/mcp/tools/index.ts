@@ -3,6 +3,49 @@ import { z } from "zod";
 import type { SessionManager } from "../../core/session-manager.js";
 
 /**
+ * Breakpoint schema with agent-facing descriptions for MCP tool inputs.
+ * Wraps the core BreakpointSchema with describe() annotations.
+ */
+const BreakpointMcpSchema = z.object({
+	line: z.number().describe("Line number"),
+	condition: z.string().optional().describe("Expression that must be true to trigger. E.g., 'discount < 0'"),
+	hitCondition: z.string().optional().describe("Break after N hits. E.g., '>=100'"),
+	logMessage: z.string().optional().describe("Log instead of breaking. Supports {expression} interpolation."),
+});
+
+const FileBreakpointsMcpSchema = z.object({
+	file: z.string().describe("Source file path (relative or absolute)"),
+	breakpoints: z.array(BreakpointMcpSchema),
+});
+
+/**
+ * Map the MCP tool's snake_case viewport_config input to the camelCase
+ * ViewportConfig expected by SessionManager. Returns undefined if not provided.
+ */
+function mapViewportConfig(
+	viewport_config:
+		| {
+				source_context_lines?: number;
+				stack_depth?: number;
+				locals_max_depth?: number;
+				locals_max_items?: number;
+				string_truncate_length?: number;
+				collection_preview_items?: number;
+		  }
+		| undefined,
+) {
+	if (!viewport_config) return undefined;
+	return {
+		sourceContextLines: viewport_config.source_context_lines,
+		stackDepth: viewport_config.stack_depth,
+		localsMaxDepth: viewport_config.locals_max_depth,
+		localsMaxItems: viewport_config.locals_max_items,
+		stringTruncateLength: viewport_config.string_truncate_length,
+		collectionPreviewItems: viewport_config.collection_preview_items,
+	};
+}
+
+/**
  * Register all debug tools with the MCP server.
  * Each tool:
  * 1. Validates input with Zod schema
@@ -19,19 +62,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			command: z.string().describe("Command to execute, e.g. 'python app.py' or 'python -m pytest tests/'. " + "The debugger will launch this command and pause at breakpoints."),
 			language: z.enum(["python", "javascript", "typescript", "go", "rust", "java", "cpp"]).optional().describe("Override automatic language detection based on file extension"),
 			breakpoints: z
-				.array(
-					z.object({
-						file: z.string().describe("Source file path (relative or absolute)"),
-						breakpoints: z.array(
-							z.object({
-								line: z.number().describe("Line number"),
-								condition: z.string().optional().describe("Expression that must be true to trigger. E.g., 'discount < 0'"),
-								hitCondition: z.string().optional().describe("Break after N hits. E.g., '>=100'"),
-								logMessage: z.string().optional().describe("Log instead of breaking. Supports {expression} interpolation."),
-							}),
-						),
-					}),
-				)
+				.array(FileBreakpointsMcpSchema)
 				.optional()
 				.describe(
 					"Initial breakpoints to set before execution begins. " +
@@ -55,25 +86,13 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 		},
 		async ({ command, language, breakpoints, cwd, env, viewport_config, stop_on_entry }) => {
 			try {
-				// Map snake_case viewport config to camelCase
-				const viewportConfig = viewport_config
-					? {
-							sourceContextLines: viewport_config.source_context_lines,
-							stackDepth: viewport_config.stack_depth,
-							localsMaxDepth: viewport_config.locals_max_depth,
-							localsMaxItems: viewport_config.locals_max_items,
-							stringTruncateLength: viewport_config.string_truncate_length,
-							collectionPreviewItems: viewport_config.collection_preview_items,
-						}
-					: undefined;
-
 				const result = await sessionManager.launch({
 					command,
 					language,
 					breakpoints,
 					cwd,
 					env,
-					viewportConfig,
+					viewportConfig: mapViewportConfig(viewport_config),
 					stopOnEntry: stop_on_entry,
 				});
 
@@ -219,14 +238,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			session_id: z.string().describe("The active debug session"),
 			file: z.string().describe("Source file path"),
 			breakpoints: z
-				.array(
-					z.object({
-						line: z.number().describe("Line number"),
-						condition: z.string().optional().describe("Expression that must be true to trigger"),
-						hitCondition: z.string().optional().describe("Break after N hits. E.g., '>=100'"),
-						logMessage: z.string().optional().describe("Log instead of breaking. Supports {expression} interpolation."),
-					}),
-				)
+				.array(BreakpointMcpSchema)
 				.describe("Breakpoint definitions. REPLACES all existing breakpoints in this file. " + "To add a breakpoint without removing existing ones, include them all."),
 		},
 		async ({ session_id, file, breakpoints }) => {
@@ -485,22 +497,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			port: z.number().optional().describe("Debug server port. Python debugpy default: 5678. Node.js inspector default: 9229."),
 			host: z.string().optional().describe("Debug server host. Default: '127.0.0.1'"),
 			cwd: z.string().optional().describe("Working directory for source file resolution"),
-			breakpoints: z
-				.array(
-					z.object({
-						file: z.string().describe("Source file path"),
-						breakpoints: z.array(
-							z.object({
-								line: z.number().describe("Line number"),
-								condition: z.string().optional(),
-								hitCondition: z.string().optional(),
-								logMessage: z.string().optional(),
-							}),
-						),
-					}),
-				)
-				.optional()
-				.describe("Breakpoints to set after attaching"),
+			breakpoints: z.array(FileBreakpointsMcpSchema).optional().describe("Breakpoints to set after attaching"),
 			viewport_config: z
 				.object({
 					source_context_lines: z.number().optional(),
@@ -515,17 +512,6 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 		},
 		async ({ language, pid, port, host, cwd, breakpoints, viewport_config }) => {
 			try {
-				const viewportConfig = viewport_config
-					? {
-							sourceContextLines: viewport_config.source_context_lines,
-							stackDepth: viewport_config.stack_depth,
-							localsMaxDepth: viewport_config.locals_max_depth,
-							localsMaxItems: viewport_config.locals_max_items,
-							stringTruncateLength: viewport_config.string_truncate_length,
-							collectionPreviewItems: viewport_config.collection_preview_items,
-						}
-					: undefined;
-
 				const result = await sessionManager.attach({
 					language,
 					pid,
@@ -533,7 +519,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 					host,
 					cwd,
 					breakpoints,
-					viewportConfig,
+					viewportConfig: mapViewportConfig(viewport_config),
 				});
 
 				return {

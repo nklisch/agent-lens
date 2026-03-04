@@ -9,7 +9,7 @@ import { DAPClient } from "./dap-client.js";
 import { AdapterNotFoundError, AdapterPrerequisiteError, SessionLimitError, SessionNotFoundError, SessionStateError } from "./errors.js";
 import { extractObservations, formatSessionLogDetailed, formatSessionLogSummary } from "./session-logger.js";
 import type { Breakpoint, EnrichedActionLogEntry, ExceptionInfo, ResourceLimits, SessionStatus, StopReason, ThreadInfo, TokenStats, Variable, ViewportConfig, ViewportSnapshot } from "./types.js";
-import { ViewportConfigSchema } from "./types.js";
+import { ResourceLimitsSchema, ViewportConfigSchema } from "./types.js";
 import { convertDAPVariables, renderDAPVariable } from "./value-renderer.js";
 import { computeViewportDiff, isDiffEligible, renderViewport, renderViewportDiff } from "./viewport.js";
 
@@ -1319,4 +1319,12 @@ export class SessionManager {
 		const ids = [...this.sessions.keys()];
 		await Promise.allSettled(ids.map((id) => this.stop(id)));
 	}
+}
+
+/**
+ * Create a SessionManager with default resource limits.
+ * Use this in entry points instead of repeating the ResourceLimitsSchema.parse({}) pattern.
+ */
+export function createSessionManager(): SessionManager {
+	return new SessionManager(ResourceLimitsSchema.parse({}));
 }

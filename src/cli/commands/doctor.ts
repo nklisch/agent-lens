@@ -1,8 +1,5 @@
 import { defineCommand } from "citty";
-import { GoAdapter } from "../../adapters/go.js";
-import { NodeAdapter } from "../../adapters/node.js";
-import { PythonAdapter } from "../../adapters/python.js";
-import { listAdapters, registerAdapter } from "../../adapters/registry.js";
+import { listAdapters, registerAllAdapters } from "../../adapters/registry.js";
 import type { OutputMode } from "../format.js";
 import { resolveOutputMode } from "../format.js";
 
@@ -182,9 +179,7 @@ export const doctorCommand = defineCommand({
 		const mode = resolveOutputMode(args);
 
 		// Register adapters directly (doctor doesn't need the daemon)
-		registerAdapter(new PythonAdapter());
-		registerAdapter(new NodeAdapter());
-		registerAdapter(new GoAdapter());
+		registerAllAdapters();
 
 		const result = await runDoctorChecks();
 		process.stdout.write(`${formatDoctor(result, mode)}\n`);

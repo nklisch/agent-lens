@@ -1,4 +1,7 @@
 import type { DebugAdapter } from "./base.js";
+import { GoAdapter } from "./go.js";
+import { NodeAdapter } from "./node.js";
+import { PythonAdapter } from "./python.js";
 
 const adapters = new Map<string, DebugAdapter>();
 
@@ -16,6 +19,16 @@ export function getAdapter(idOrExtension: string): DebugAdapter | undefined {
 export function getAdapterForFile(filePath: string): DebugAdapter | undefined {
 	const ext = `.${filePath.split(".").pop()}`;
 	return adapters.get(ext);
+}
+
+/**
+ * Register the default set of language adapters (Python, Node.js, Go).
+ * Call this once at startup in each entry point.
+ */
+export function registerAllAdapters(): void {
+	registerAdapter(new PythonAdapter());
+	registerAdapter(new NodeAdapter());
+	registerAdapter(new GoAdapter());
 }
 
 export function listAdapters(): DebugAdapter[] {

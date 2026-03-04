@@ -24,6 +24,17 @@ export const BreakpointSchema = z.object({
 
 export type Breakpoint = z.infer<typeof BreakpointSchema>;
 
+/**
+ * Schema for a set of breakpoints in a single file.
+ * Used by both the daemon protocol and MCP tools.
+ */
+export const FileBreakpointsSchema = z.object({
+	file: z.string(),
+	breakpoints: z.array(BreakpointSchema),
+});
+
+export type FileBreakpoints = z.infer<typeof FileBreakpointsSchema>;
+
 // --- Session ---
 
 export type SessionStatus = "running" | "stopped" | "terminated" | "error";

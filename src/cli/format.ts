@@ -156,6 +156,18 @@ export function formatBreakpointsList(result: BreakpointsListPayload, mode: Outp
 }
 
 /**
+ * Format watch expressions for CLI output.
+ */
+export function formatWatchExpressions(expressions: string[], mode: OutputMode): string {
+	if (mode === "json") {
+		return JSON.stringify({ watchExpressions: expressions }, null, 2);
+	}
+	const lines: string[] = [`Watch expressions (${expressions.length} total):`];
+	for (const expr of expressions) lines.push(`  ${expr}`);
+	return lines.join("\n");
+}
+
+/**
  * Format an error for CLI output.
  * In text mode: "Error: <message>"
  * In JSON mode: { "error": "<message>", "code": "<code>" }

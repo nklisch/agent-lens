@@ -100,6 +100,29 @@ export function spawnAndWait(options: SpawnAndWaitOptions): Promise<SpawnResult>
 }
 
 /**
+ * Gracefully dispose of an adapter: close the socket, then SIGTERM the process
+ * (SIGKILL after 2 s if it doesn't exit). Same teardown pattern used by all adapters.
+ */
+export async function gracefulDispose(socket: Socket | null, proc: ChildProcess | null): Promise<void> {
+	if (socket) {
+		socket.destroy();
+	}
+	if (proc) {
+		proc.kill("SIGTERM");
+		await new Promise<void>((resolve) => {
+			const timeout = setTimeout(() => {
+				proc.kill("SIGKILL");
+				resolve();
+			}, 2_000);
+			proc.once("close", () => {
+				clearTimeout(timeout);
+				resolve();
+			});
+		});
+	}
+}
+
+/**
  * Connect a TCP socket to host:port with retry logic.
  * Retries up to `maxRetries` times with `retryDelayMs` between attempts.
  * Returns the connected Socket.

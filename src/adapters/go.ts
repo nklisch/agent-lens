@@ -5,7 +5,7 @@ import type { Socket } from "node:net";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve as resolvePath } from "node:path";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, connectTCP, spawnAndWait } from "./helpers.js";
+import { allocatePort, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
 
 /**
  * Build an augmented PATH that includes common Go binary install locations
@@ -135,25 +135,9 @@ export class GoAdapter implements DebugAdapter {
 	 * Kill the Delve process and close the socket.
 	 */
 	async dispose(): Promise<void> {
-		if (this.socket) {
-			this.socket.destroy();
-			this.socket = null;
-		}
-		if (this.dlvProcess) {
-			const proc = this.dlvProcess;
-			this.dlvProcess = null;
-			proc.kill("SIGTERM");
-			await new Promise<void>((resolve) => {
-				const timeout = setTimeout(() => {
-					proc.kill("SIGKILL");
-					resolve();
-				}, 2_000);
-				proc.once("close", () => {
-					clearTimeout(timeout);
-					resolve();
-				});
-			});
-		}
+		await gracefulDispose(this.socket, this.dlvProcess);
+		this.socket = null;
+		this.dlvProcess = null;
 	}
 }
 

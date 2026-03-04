@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
+import { BreakpointSchema, FileBreakpointsSchema } from "../core/types.js";
 
 // --- JSON-RPC 2.0 Base Types ---
 
@@ -94,21 +95,7 @@ export type SessionIdParams = z.infer<typeof SessionIdParamsSchema>;
 export const LaunchParamsSchema = z.object({
 	command: z.string(),
 	language: z.string().optional(),
-	breakpoints: z
-		.array(
-			z.object({
-				file: z.string(),
-				breakpoints: z.array(
-					z.object({
-						line: z.number(),
-						condition: z.string().optional(),
-						hitCondition: z.string().optional(),
-						logMessage: z.string().optional(),
-					}),
-				),
-			}),
-		)
-		.optional(),
+	breakpoints: z.array(FileBreakpointsSchema).optional(),
 	cwd: z.string().optional(),
 	env: z.record(z.string(), z.string()).optional(),
 	viewportConfig: z
@@ -146,21 +133,7 @@ export const AttachParamsSchema = z.object({
 	port: z.number().optional(),
 	host: z.string().optional(),
 	cwd: z.string().optional(),
-	breakpoints: z
-		.array(
-			z.object({
-				file: z.string(),
-				breakpoints: z.array(
-					z.object({
-						line: z.number(),
-						condition: z.string().optional(),
-						hitCondition: z.string().optional(),
-						logMessage: z.string().optional(),
-					}),
-				),
-			}),
-		)
-		.optional(),
+	breakpoints: z.array(FileBreakpointsSchema).optional(),
 	viewportConfig: z
 		.object({
 			sourceContextLines: z.number().optional(),
@@ -185,14 +158,7 @@ export type RunToParams = z.infer<typeof RunToParamsSchema>;
 export const SetBreakpointsParamsSchema = z.object({
 	sessionId: z.string(),
 	file: z.string(),
-	breakpoints: z.array(
-		z.object({
-			line: z.number(),
-			condition: z.string().optional(),
-			hitCondition: z.string().optional(),
-			logMessage: z.string().optional(),
-		}),
-	),
+	breakpoints: z.array(BreakpointSchema),
 });
 export type SetBreakpointsParams = z.infer<typeof SetBreakpointsParamsSchema>;
 
