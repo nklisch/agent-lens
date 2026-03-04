@@ -1,33 +1,92 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import type { SessionManager } from "../../core/session-manager.js";
 
 /**
- * Registers all debug tools with the MCP server.
- * Each tool validates its input with Zod and delegates to the session manager.
+ * Register all debug tools with the MCP server.
+ * Each tool:
+ * 1. Validates input with Zod schema
+ * 2. Delegates to SessionManager
+ * 3. Returns viewport text as MCP TextContent
+ * 4. Handles errors with descriptive messages
  */
-export function registerTools(server: McpServer): void {
+export function registerTools(server: McpServer, sessionManager: SessionManager): void {
+	// Tool 1: debug_launch
 	server.tool(
 		"debug_launch",
 		"Launch a debug target process. Sets initial breakpoints and returns a session handle. The viewport shows source, locals, and call stack at each stop.",
 		{
-			command: z.string().describe("Command to execute, e.g. 'python app.py'"),
-			language: z
-				.enum(["python", "javascript", "typescript", "go", "rust", "java", "cpp"])
+			command: z.string().describe("Command to execute, e.g. 'python app.py' or 'python -m pytest tests/'. " + "The debugger will launch this command and pause at breakpoints."),
+			language: z.enum(["python", "javascript", "typescript", "go", "rust", "java", "cpp"]).optional().describe("Override automatic language detection based on file extension"),
+			breakpoints: z
+				.array(
+					z.object({
+						file: z.string().describe("Source file path (relative or absolute)"),
+						breakpoints: z.array(
+							z.object({
+								line: z.number().describe("Line number"),
+								condition: z.string().optional().describe("Expression that must be true to trigger. E.g., 'discount < 0'"),
+								hitCondition: z.string().optional().describe("Break after N hits. E.g., '>=100'"),
+								logMessage: z.string().optional().describe("Log instead of breaking. Supports {expression} interpolation."),
+							}),
+						),
+					}),
+				)
 				.optional()
-				.describe("Override language detection"),
+				.describe(
+					"Initial breakpoints to set before execution begins. " +
+						"Note: breakpoints on non-executable lines (comments, blank lines, decorators) " +
+						"may be adjusted by the debugger to the nearest executable line.",
+				),
 			cwd: z.string().optional().describe("Working directory for the debug target"),
-			stop_on_entry: z.boolean().optional().describe("Pause on first executable line"),
+			env: z.record(z.string(), z.string()).optional().describe("Additional environment variables for the debug target"),
+			viewport_config: z
+				.object({
+					source_context_lines: z.number().optional(),
+					stack_depth: z.number().optional(),
+					locals_max_depth: z.number().optional(),
+					locals_max_items: z.number().optional(),
+					string_truncate_length: z.number().optional(),
+					collection_preview_items: z.number().optional(),
+				})
+				.optional()
+				.describe("Override default viewport rendering parameters"),
+			stop_on_entry: z.boolean().optional().describe("Pause on the first executable line. Default: false"),
 		},
-		async ({ command, language, cwd, stop_on_entry }) => {
-			// TODO: delegate to session manager
-			void command;
-			void language;
-			void cwd;
-			void stop_on_entry;
-			return { content: [{ type: "text" as const, text: "Not implemented" }] };
+		async ({ command, language, breakpoints, cwd, env, viewport_config, stop_on_entry }) => {
+			try {
+				// Map snake_case viewport config to camelCase
+				const viewportConfig = viewport_config
+					? {
+							sourceContextLines: viewport_config.source_context_lines,
+							stackDepth: viewport_config.stack_depth,
+							localsMaxDepth: viewport_config.locals_max_depth,
+							localsMaxItems: viewport_config.locals_max_items,
+							stringTruncateLength: viewport_config.string_truncate_length,
+							collectionPreviewItems: viewport_config.collection_preview_items,
+						}
+					: undefined;
+
+				const result = await sessionManager.launch({
+					command,
+					language,
+					breakpoints,
+					cwd,
+					env,
+					viewportConfig,
+					stopOnEntry: stop_on_entry,
+				});
+
+				const text = result.viewport ? `Session: ${result.sessionId}\n\n${result.viewport}` : `Session: ${result.sessionId}\nStatus: ${result.status}`;
+
+				return { content: [{ type: "text" as const, text }] };
+			} catch (err) {
+				return errorResponse(err);
+			}
 		},
 	);
 
+	// Tool 2: debug_stop
 	server.tool(
 		"debug_stop",
 		"Terminate a debug session and clean up all resources.",
@@ -35,14 +94,337 @@ export function registerTools(server: McpServer): void {
 			session_id: z.string().describe("The session to terminate"),
 		},
 		async ({ session_id }) => {
-			void session_id;
-			return { content: [{ type: "text" as const, text: "Not implemented" }] };
+			try {
+				const result = await sessionManager.stop(session_id);
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: `Session ${session_id} terminated.\nDuration: ${result.duration}ms\nActions: ${result.actionCount}`,
+						},
+					],
+				};
+			} catch (err) {
+				return errorResponse(err);
+			}
 		},
 	);
 
-	// TODO: register remaining tools:
-	// debug_status, debug_continue, debug_step, debug_run_to,
-	// debug_set_breakpoints, debug_set_exception_breakpoints, debug_list_breakpoints,
-	// debug_evaluate, debug_variables, debug_stack_trace, debug_source,
-	// debug_watch, debug_session_log, debug_output
+	// Tool 3: debug_status
+	server.tool(
+		"debug_status",
+		"Get the current status of a debug session. Returns viewport if stopped.",
+		{
+			session_id: z.string().describe("The session to query"),
+		},
+		async ({ session_id }) => {
+			try {
+				const result = await sessionManager.getStatus(session_id);
+				const text = result.viewport ? `Status: ${result.status}\n\n${result.viewport}` : `Status: ${result.status}`;
+				return { content: [{ type: "text" as const, text }] };
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+
+	// Tool 4: debug_continue
+	server.tool(
+		"debug_continue",
+		"Resume execution until the next breakpoint or program end. Returns the viewport at the next stop point.",
+		{
+			session_id: z.string().describe("The active debug session"),
+			timeout_ms: z.number().optional().describe("Max wait time for next stop in ms. Default: 30000"),
+		},
+		async ({ session_id, timeout_ms }) => {
+			try {
+				const viewport = await sessionManager.continue(session_id, timeout_ms);
+				return { content: [{ type: "text" as const, text: viewport }] };
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+
+	// Tool 5: debug_step
+	server.tool(
+		"debug_step",
+		"Step execution in the specified direction. Returns the viewport after stepping.",
+		{
+			session_id: z.string().describe("The active debug session"),
+			direction: z.enum(["over", "into", "out"]).describe("Step granularity: 'over' skips function calls, 'into' enters them, 'out' runs to parent frame"),
+			count: z.number().optional().describe("Number of steps to take. Default: 1. Useful for stepping through loops without setting breakpoints."),
+		},
+		async ({ session_id, direction, count }) => {
+			try {
+				const viewport = await sessionManager.step(session_id, direction, count);
+				return { content: [{ type: "text" as const, text: viewport }] };
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+
+	// Tool 6: debug_run_to
+	server.tool(
+		"debug_run_to",
+		"Run execution to a specific file and line number, then pause.",
+		{
+			session_id: z.string().describe("The active debug session"),
+			file: z.string().describe("Target file path"),
+			line: z.number().describe("Target line number"),
+			timeout_ms: z.number().optional().describe("Max wait time in ms. Default: 30000"),
+		},
+		async ({ session_id, file, line, timeout_ms }) => {
+			try {
+				const viewport = await sessionManager.runTo(session_id, file, line, timeout_ms);
+				return { content: [{ type: "text" as const, text: viewport }] };
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+
+	// Tool 7: debug_set_breakpoints
+	server.tool(
+		"debug_set_breakpoints",
+		"Set breakpoints in a source file. REPLACES all existing breakpoints in that file.",
+		{
+			session_id: z.string().describe("The active debug session"),
+			file: z.string().describe("Source file path"),
+			breakpoints: z
+				.array(
+					z.object({
+						line: z.number().describe("Line number"),
+						condition: z.string().optional().describe("Expression that must be true to trigger"),
+						hitCondition: z.string().optional().describe("Break after N hits. E.g., '>=100'"),
+						logMessage: z.string().optional().describe("Log instead of breaking. Supports {expression} interpolation."),
+					}),
+				)
+				.describe("Breakpoint definitions. REPLACES all existing breakpoints in this file. " + "To add a breakpoint without removing existing ones, include them all."),
+		},
+		async ({ session_id, file, breakpoints }) => {
+			try {
+				const verified = await sessionManager.setBreakpoints(session_id, file, breakpoints);
+				const lines = verified.map((bp) => `  Line ${bp.line ?? "?"}: ${bp.verified ? "verified" : "unverified"} ${bp.message ?? ""}`).join("\n");
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: `Set ${breakpoints.length} breakpoints in ${file}:\n${lines}`,
+						},
+					],
+				};
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+
+	// Tool 8: debug_set_exception_breakpoints
+	server.tool(
+		"debug_set_exception_breakpoints",
+		"Configure exception breakpoint filters. Controls which exceptions pause execution.",
+		{
+			session_id: z.string().describe("The active debug session"),
+			filters: z
+				.array(z.string())
+				.describe(
+					"Exception filter IDs. Python: 'raised' (all exceptions), " + "'uncaught' (unhandled only), 'userUnhandled'. " + "Use debug_status to see available filters for the current adapter.",
+				),
+		},
+		async ({ session_id, filters }) => {
+			try {
+				await sessionManager.setExceptionBreakpoints(session_id, filters);
+				return {
+					content: [{ type: "text" as const, text: `Exception breakpoints set: ${filters.join(", ")}` }],
+				};
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+
+	// Tool 9: debug_list_breakpoints
+	server.tool(
+		"debug_list_breakpoints",
+		"List all breakpoints currently set in the debug session.",
+		{
+			session_id: z.string().describe("The active debug session"),
+		},
+		async ({ session_id }) => {
+			try {
+				const bpMap = sessionManager.listBreakpoints(session_id);
+				if (bpMap.size === 0) {
+					return { content: [{ type: "text" as const, text: "No breakpoints set." }] };
+				}
+				const lines: string[] = [];
+				for (const [file, bps] of bpMap) {
+					lines.push(`${file}:`);
+					for (const bp of bps) {
+						const extras = [bp.condition ? `condition: ${bp.condition}` : "", bp.hitCondition ? `hitCondition: ${bp.hitCondition}` : "", bp.logMessage ? `logMessage: ${bp.logMessage}` : ""]
+							.filter(Boolean)
+							.join(", ");
+						lines.push(`  Line ${bp.line}${extras ? ` (${extras})` : ""}`);
+					}
+				}
+				return { content: [{ type: "text" as const, text: lines.join("\n") }] };
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+
+	// Tool 10: debug_evaluate
+	server.tool(
+		"debug_evaluate",
+		"Evaluate an expression in the current debug context. Can access variables, call functions, and inspect nested objects.",
+		{
+			session_id: z.string().describe("The active debug session"),
+			expression: z
+				.string()
+				.describe("Expression to evaluate in the debugee's context. " + "E.g., 'cart.items[0].__dict__', 'len(results)', 'discount < 0'. " + "Can call methods and access nested attributes."),
+			frame_index: z.number().optional().describe("Stack frame context: 0 = current frame (default), 1 = caller, 2 = caller's caller, etc."),
+			max_depth: z.number().optional().describe("Object expansion depth for the result. Default: 2"),
+		},
+		async ({ session_id, expression, frame_index, max_depth }) => {
+			try {
+				const result = await sessionManager.evaluate(session_id, expression, frame_index, max_depth);
+				return { content: [{ type: "text" as const, text: `${expression} = ${result}` }] };
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+
+	// Tool 11: debug_variables
+	server.tool(
+		"debug_variables",
+		"Get variables from a specific scope and stack frame.",
+		{
+			session_id: z.string().describe("The active debug session"),
+			scope: z.enum(["local", "global", "closure", "all"]).optional().describe("Variable scope to retrieve. Default: 'local'"),
+			frame_index: z.number().optional().describe("Stack frame context (0 = current). Default: 0"),
+			filter: z.string().optional().describe("Regex filter on variable names. E.g., '^user' to show only user-prefixed vars"),
+			max_depth: z.number().optional().describe("Object expansion depth. Default: 1"),
+		},
+		async ({ session_id, scope, frame_index, filter, max_depth }) => {
+			try {
+				const result = await sessionManager.getVariables(session_id, scope ?? "local", frame_index, filter, max_depth);
+				return { content: [{ type: "text" as const, text: result || "No variables found." }] };
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+
+	// Tool 12: debug_stack_trace
+	server.tool(
+		"debug_stack_trace",
+		"Get the current call stack showing the execution path to the current point.",
+		{
+			session_id: z.string().describe("The active debug session"),
+			max_frames: z.number().optional().describe("Maximum frames to return. Default: 20"),
+			include_source: z.boolean().optional().describe("Include source context around each frame. Default: false"),
+		},
+		async ({ session_id, max_frames, include_source }) => {
+			try {
+				const result = await sessionManager.getStackTrace(session_id, max_frames, include_source);
+				return { content: [{ type: "text" as const, text: result }] };
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+
+	// Tool 13: debug_source
+	server.tool(
+		"debug_source",
+		"Read source code from a file with line numbers.",
+		{
+			session_id: z.string().describe("The active debug session"),
+			file: z.string().describe("Source file path"),
+			start_line: z.number().optional().describe("Start of range. Default: 1"),
+			end_line: z.number().optional().describe("End of range. Default: start_line + 40"),
+		},
+		async ({ session_id, file, start_line, end_line }) => {
+			try {
+				const result = await sessionManager.getSource(session_id, file, start_line, end_line);
+				return { content: [{ type: "text" as const, text: result }] };
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+
+	// Tool 14: debug_watch (stub — stores expressions for Phase 3)
+	server.tool(
+		"debug_watch",
+		"Add expressions to the watch list. Watched expressions are evaluated and shown in every viewport.",
+		{
+			session_id: z.string().describe("The active debug session"),
+			expressions: z
+				.array(z.string())
+				.describe("Expressions to add to the watch list. " + "Watched expressions are evaluated and shown in every viewport. " + "E.g., ['len(cart.items)', 'user.tier', 'total > 0']"),
+		},
+		async ({ session_id, expressions }) => {
+			try {
+				const confirmed = sessionManager.addWatchExpressions(session_id, expressions);
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: `Watch expressions (${confirmed.length} total):\n${confirmed.map((e) => `  ${e}`).join("\n")}`,
+						},
+					],
+				};
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+
+	// Tool 15: debug_session_log (stub for Phase 3)
+	server.tool(
+		"debug_session_log",
+		"Get the action history for a debug session.",
+		{
+			session_id: z.string().describe("The active debug session"),
+			format: z.enum(["summary", "detailed"]).optional().describe("Level of detail. Default: 'summary'"),
+		},
+		async ({ session_id, format }) => {
+			try {
+				const log = sessionManager.getSessionLog(session_id, format);
+				return { content: [{ type: "text" as const, text: log || "No actions logged." }] };
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+
+	// Tool 16: debug_output
+	server.tool(
+		"debug_output",
+		"Get captured stdout/stderr output from the debug target.",
+		{
+			session_id: z.string().describe("The active debug session"),
+			stream: z.enum(["stdout", "stderr", "both"]).optional().describe("Which output stream. Default: 'both'"),
+			since_action: z.number().optional().describe("Only show output captured since action N. Default: 0 (all)"),
+		},
+		async ({ session_id, stream, since_action }) => {
+			try {
+				const output = sessionManager.getOutput(session_id, stream ?? "both", since_action ?? 0);
+				return {
+					content: [{ type: "text" as const, text: output || "No output captured." }],
+				};
+			} catch (err) {
+				return errorResponse(err);
+			}
+		},
+	);
+}
+
+function errorResponse(err: unknown): { content: Array<{ type: "text"; text: string }>; isError: true } {
+	const message = err instanceof Error ? err.message : String(err);
+	return { content: [{ type: "text" as const, text: message }], isError: true };
 }

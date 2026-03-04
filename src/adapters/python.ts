@@ -1,32 +1,218 @@
-import type {
-	AttachConfig,
-	DAPConnection,
-	DebugAdapter,
-	LaunchConfig,
-	PrerequisiteResult,
-} from "./base.js";
+import type { ChildProcess } from "node:child_process";
+import { spawn } from "node:child_process";
+import type { Socket } from "node:net";
+import { createServer } from "node:net";
+import { LaunchError } from "../core/errors.js";
+import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
 
 export class PythonAdapter implements DebugAdapter {
 	id = "python";
 	fileExtensions = [".py"];
 	displayName = "Python (debugpy)";
 
+	private process: ChildProcess | null = null;
+	private socket: Socket | null = null;
+
+	/**
+	 * Check for python3 and debugpy availability.
+	 * Spawns `python3 -m debugpy --version` and parses output.
+	 */
 	async checkPrerequisites(): Promise<PrerequisiteResult> {
-		// TODO: check for python3 and debugpy
-		throw new Error("Not implemented");
+		return new Promise((resolve) => {
+			const proc = spawn("python3", ["-m", "debugpy", "--version"], { stdio: "pipe" });
+			let _output = "";
+			proc.stdout?.on("data", (d: Buffer) => {
+				_output += d.toString();
+			});
+			proc.stderr?.on("data", (d: Buffer) => {
+				_output += d.toString();
+			});
+			proc.on("close", (code) => {
+				if (code === 0) {
+					resolve({ satisfied: true });
+				} else {
+					resolve({
+						satisfied: false,
+						missing: ["debugpy"],
+						installHint: "pip install debugpy",
+					});
+				}
+			});
+			proc.on("error", () => {
+				resolve({
+					satisfied: false,
+					missing: ["python3", "debugpy"],
+					installHint: "Install python3 and pip install debugpy",
+				});
+			});
+		});
 	}
 
-	async launch(_config: LaunchConfig): Promise<DAPConnection> {
-		// TODO: launch python -m debugpy --listen 0:PORT --wait-for-client <script>
-		throw new Error("Not implemented");
+	/**
+	 * Launch a Python script under debugpy.
+	 */
+	async launch(config: LaunchConfig): Promise<DAPConnection> {
+		const port = config.port ?? (await allocatePort());
+		const { script, args } = parseCommand(config.command);
+
+		const debugpyArgs = ["python3", "-m", "debugpy", "--listen", `0.0.0.0:${port}`, "--wait-for-client"];
+
+		// Handle -m module case
+		if (script === "-m") {
+			debugpyArgs.push("-m", ...args);
+		} else {
+			debugpyArgs.push(script, ...args);
+		}
+
+		const [cmd, ...spawnArgs] = debugpyArgs;
+		const stderrBuffer: string[] = [];
+
+		const child = spawn(cmd, spawnArgs, {
+			cwd: config.cwd,
+			env: { ...process.env, ...config.env },
+			stdio: ["pipe", "pipe", "pipe"],
+		});
+
+		this.process = child;
+
+		// Wait for debugpy to start listening
+		await new Promise<void>((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				child.kill();
+				reject(new LaunchError(`debugpy did not start within 10 seconds. stderr: ${stderrBuffer.join("")}`, stderrBuffer.join("")));
+			}, 10_000);
+
+			child.stderr?.on("data", (data: Buffer) => {
+				const text = data.toString();
+				stderrBuffer.push(text);
+				if (text.toLowerCase().includes("waiting") || text.toLowerCase().includes("listening")) {
+					clearTimeout(timeout);
+					resolve();
+				}
+			});
+
+			child.on("error", (err) => {
+				clearTimeout(timeout);
+				reject(new LaunchError(`Failed to spawn debugpy: ${err.message}`, stderrBuffer.join("")));
+			});
+
+			child.on("close", (code) => {
+				clearTimeout(timeout);
+				if (code !== null && code !== 0) {
+					reject(new LaunchError(`debugpy exited with code ${code}. stderr: ${stderrBuffer.join("")}`, stderrBuffer.join("")));
+				}
+			});
+		});
+
+		// Connect TCP socket to debugpy
+		const socket = await new Promise<Socket>((resolve, reject) => {
+			const { createConnection } = require("node:net") as typeof import("node:net");
+			const sock = createConnection({ host: "127.0.0.1", port });
+			sock.once("connect", () => resolve(sock));
+			sock.once("error", reject);
+		});
+
+		this.socket = socket;
+
+		return {
+			reader: socket,
+			writer: socket,
+			process: child,
+		};
 	}
 
-	async attach(_config: AttachConfig): Promise<DAPConnection> {
-		// TODO: connect to running debugpy instance
-		throw new Error("Not implemented");
+	/**
+	 * Attach to an already-running debugpy instance.
+	 */
+	async attach(config: AttachConfig): Promise<DAPConnection> {
+		const host = config.host ?? "127.0.0.1";
+		const port = config.port ?? 5678;
+
+		const socket = await new Promise<Socket>((resolve, reject) => {
+			const { createConnection } = require("node:net") as typeof import("node:net");
+			const sock = createConnection({ host, port });
+			sock.once("connect", () => resolve(sock));
+			sock.once("error", reject);
+		});
+
+		this.socket = socket;
+
+		return {
+			reader: socket,
+			writer: socket,
+		};
 	}
 
+	/**
+	 * Kill the child process and close the socket.
+	 */
 	async dispose(): Promise<void> {
-		// TODO: clean up child processes
+		if (this.socket) {
+			this.socket.destroy();
+			this.socket = null;
+		}
+		if (this.process) {
+			const proc = this.process;
+			this.process = null;
+			proc.kill("SIGTERM");
+			await new Promise<void>((resolve) => {
+				const timeout = setTimeout(() => {
+					proc.kill("SIGKILL");
+					resolve();
+				}, 2_000);
+				proc.once("close", () => {
+					clearTimeout(timeout);
+					resolve();
+				});
+			});
+		}
 	}
+}
+
+/**
+ * Allocate a free TCP port by binding to port 0, reading the
+ * assigned port, and immediately closing the server.
+ */
+export function allocatePort(): Promise<number> {
+	return new Promise((resolve, reject) => {
+		const server = createServer();
+		server.listen(0, () => {
+			const addr = server.address();
+			if (!addr || typeof addr === "string") {
+				server.close();
+				reject(new Error("Failed to allocate port"));
+				return;
+			}
+			const port = addr.port;
+			server.close(() => resolve(port));
+		});
+		server.on("error", reject);
+	});
+}
+
+/**
+ * Parse the script path and arguments from a command string.
+ * E.g., "python app.py --verbose" => { script: "app.py", args: ["--verbose"] }
+ * Strips leading "python3", "python", or "python3 -m debugpy ..." prefixes.
+ */
+export function parseCommand(command: string): { script: string; args: string[] } {
+	const parts = command.trim().split(/\s+/);
+	let i = 0;
+
+	// Strip python/python3 prefix
+	if (parts[i] === "python3" || parts[i] === "python") {
+		i++;
+	}
+
+	// Handle -m module case
+	if (parts[i] === "-m") {
+		// e.g. "python -m pytest tests/" => script: "-m", args: ["pytest", "tests/"]
+		return { script: "-m", args: parts.slice(i + 1) };
+	}
+
+	// Bare script or remaining path
+	const script = parts[i] ?? "";
+	const args = parts.slice(i + 1);
+
+	return { script, args };
 }
