@@ -33,12 +33,22 @@ fi
 
 echo ""
 
-# --- Node.js ---
+# --- Node.js + js-debug adapter ---
 echo "Node.js:"
 if command -v node &>/dev/null; then
     ok "node $(node --version)"
+
+    JS_DEBUG_CACHE="$HOME/.agent-lens/adapters/js-debug/js-debug/src/dapDebugServer.js"
+    if [ -f "$JS_DEBUG_CACHE" ]; then
+        ok "js-debug DAP adapter cached"
+    else
+        warn "js-debug DAP adapter not cached — downloading..."
+        # Trigger the download by running a quick bun script
+        bun -e "import { getJsDebugAdapterPath } from './src/adapters/js-debug-adapter.js'; await getJsDebugAdapterPath();"
+        ok "js-debug DAP adapter cached"
+    fi
 else
-    fail "node not found (needed for node adapter tests)"
+    fail "node not found (needed for node adapter tests) — install from https://nodejs.org"
 fi
 
 echo ""
