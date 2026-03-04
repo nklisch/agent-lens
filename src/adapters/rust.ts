@@ -17,7 +17,7 @@ const execAsync = promisify(exec);
 /**
  * Pinned CodeLLDB version to use.
  */
-const CODELLDB_VERSION = "1.10.0";
+const CODELLDB_VERSION = "1.12.1";
 
 /**
  * Returns the path to the CodeLLDB adapter cache directory.
@@ -54,11 +54,11 @@ function getVsixUrl(): string {
 	const os = platform();
 	let platformStr: string;
 	if (os === "darwin") {
-		platformStr = process.arch === "arm64" ? "aarch64-apple-darwin" : "x86_64-apple-darwin";
+		platformStr = process.arch === "arm64" ? "darwin-arm64" : "darwin-x64";
 	} else if (os === "win32") {
-		platformStr = "x86_64-pc-windows-msvc";
+		platformStr = "win32-x64";
 	} else {
-		platformStr = process.arch === "arm64" ? "aarch64-unknown-linux-gnu" : "x86_64-unknown-linux-gnu";
+		platformStr = process.arch === "arm64" ? "linux-arm64" : "linux-x64";
 	}
 	return `https://github.com/vadimcn/codelldb/releases/download/v${CODELLDB_VERSION}/codelldb-${platformStr}.vsix`;
 }
