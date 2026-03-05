@@ -18,7 +18,7 @@ We need a harness that:
 
 **Scenarios are data, not code.** A scenario is a directory of files plus a config. Adding a new test case means creating a folder, not writing test infrastructure.
 
-**Agent-agnostic.** The harness runs against any agent binary that supports MCP. Claude Code, Codex, and future agents share the same scenarios. Agent-specific details (how to spawn, how to pass MCP config, how to set permissions) are isolated in thin driver modules.
+**Agent-agnostic by design.** The harness isolates agent-specific details (how to spawn, how to pass MCP config, how to set permissions) in thin driver modules. Currently focused on Claude Code as the primary agent under test. Other drivers (Codex, etc.) are stubbed but not actively tested — cross-agent comparison can be expanded later once scenarios and reporting are proven.
 
 **Cheap to run, expensive to skip.** These tests cost real money (LLM API calls). They must be opt-in, never in default CI. But skipping them entirely means shipping blind — so the harness should make it trivial to run a quick smoke test (one scenario, one agent) during development.
 
@@ -214,35 +214,9 @@ export const claudeCode: AgentDriver = {
 };
 ```
 
-### Codex Driver
+### Codex Driver (stubbed, not actively tested)
 
-```typescript
-export const codex: AgentDriver = {
-	name: "codex",
-
-	async available() {
-		try {
-			const proc = Bun.spawn(["codex", "--version"], { stdout: "pipe" });
-			await proc.exited;
-			return proc.exitCode === 0;
-		} catch {
-			return false;
-		}
-	},
-
-	async run(options) {
-		// Codex uses --full-auto for non-interactive mode
-		// MCP config is passed via CODEX_MCP_CONFIG env var or flag
-		const args = [
-			"--full-auto",
-			"--quiet",
-			options.prompt,
-		];
-
-		// ... similar spawn pattern ...
-	},
-};
-```
+A Codex driver is included for future cross-agent testing but is not the current focus. See the source at `drivers/codex.ts`.
 
 New agents are added by creating a new driver module. The harness discovers drivers from a registry — no framework code changes needed.
 
@@ -472,8 +446,8 @@ tests/agent-harness/
     config.ts                       # Types for scenario.toml, agent options
     trace.ts                        # Trace capture and storage
   drivers/
-    claude-code.ts                  # Claude Code agent driver
-    codex.ts                        # Codex agent driver
+    claude-code.ts                  # Claude Code agent driver (primary)
+    codex.ts                        # Codex agent driver (stubbed, not actively tested)
   scenarios/
     python-discount-bug/
       scenario.toml
@@ -608,7 +582,6 @@ This produces a **markdown report** suitable for publishing:
 | Agent | Scenarios | Passed | Failed | Pass Rate | Avg Duration | Avg Cost |
 |-------|-----------|--------|--------|-----------|--------------|----------|
 | claude-code (sonnet-4-6) | 3 | 3 | 0 | 100% | 42s | $0.15 |
-| codex | 3 | 2 | 1 | 67% | 68s | $0.22 |
 
 ## Results by Scenario
 
@@ -617,33 +590,30 @@ This produces a **markdown report** suitable for publishing:
 | Agent | Result | Duration | Cost | Turns | Debug Tools Used |
 |-------|--------|----------|------|-------|------------------|
 | claude-code | PASS | 45s | $0.12 | 8 | launch, breakpoints, continue(3), evaluate(2), stop |
-| codex | PASS | 52s | $0.18 | 12 | launch, breakpoints, continue(5), variables(3), stop |
 
 ### python-off-by-one
 
 | Agent | Result | Duration | Cost | Turns | Debug Tools Used |
 |-------|--------|----------|------|-------|------------------|
 | claude-code | PASS | 38s | $0.10 | 6 | launch, breakpoints, step(4), variables, stop |
-| codex | PASS | 71s | $0.24 | 15 | launch, breakpoints, continue(2), step(8), evaluate(3), stop |
 
 ### node-async-race
 
 | Agent | Result | Duration | Cost | Turns | Debug Tools Used |
 |-------|--------|----------|------|-------|------------------|
 | claude-code | PASS | 62s | $0.22 | 11 | launch, breakpoints, continue(4), evaluate(3), variables(2), stop |
-| codex | FAIL | 120s | $0.31 | 20 | launch, breakpoints, continue(8), evaluate(5), stop |
 
 ## Tool Usage Patterns
 
 | Tool | Total Calls | Avg per Scenario |
 |------|-------------|-----------------|
-| debug_launch | 6 | 1.0 |
-| debug_continue | 22 | 3.7 |
-| debug_set_breakpoints | 6 | 1.0 |
-| debug_evaluate | 15 | 2.5 |
-| debug_variables | 6 | 1.0 |
-| debug_step | 12 | 2.0 |
-| debug_stop | 6 | 1.0 |
+| debug_launch | 3 | 1.0 |
+| debug_continue | 10 | 3.3 |
+| debug_set_breakpoints | 3 | 1.0 |
+| debug_evaluate | 5 | 1.7 |
+| debug_variables | 3 | 1.0 |
+| debug_step | 4 | 1.3 |
+| debug_stop | 3 | 1.0 |
 ```
 
 The report command also outputs the same data as JSON for programmatic consumption:
@@ -666,9 +636,6 @@ tests/agent-harness/.traces/
         workspace-diff.patch                # Git diff of agent's changes
         validation-stdout.txt               # Hidden test output
       python-off-by-one/
-        ...
-    codex/
-      python-discount-bug/
         ...
     report.md                               # Generated report
     report.json                             # Machine-readable report
@@ -701,7 +668,7 @@ This gives us a clean patch showing exactly what the agent modified, perfect for
 
 - **Benchmarking agents against each other.** The reports show per-agent results side by side, but the purpose is to validate agent-lens, not to rank agents. We don't draw conclusions about which agent is "better" — model versions, prompts, and configurations all affect outcomes.
 
-- **Testing without agent-lens.** We don't run scenarios without agent-lens to establish a baseline. That's an interesting experiment but not the purpose of this harness.
+- **Testing without agent-lens.** ~~We don't run scenarios without agent-lens to establish a baseline.~~ *Update: baseline runs are now implemented — see [with-without-comparison.md](with-without-comparison.md).*
 
 - **Covering every language.** Start with Python and Node.js. Add languages as agent-lens gains adapter support. The harness itself is language-agnostic — new languages are just new scenario directories.
 

@@ -31,6 +31,7 @@ export interface AttachConfig {
 	pid?: number;
 	port?: number;
 	host?: string;
+	env?: Record<string, string>;
 }
 
 export interface DebugAdapter {

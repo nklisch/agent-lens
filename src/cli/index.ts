@@ -51,9 +51,13 @@ const main = defineCommand({
 		doctor: doctorCommand,
 		skill: skillCommand,
 		// Hidden: internal daemon entry point
-		_daemon: async () => {
-			await import("../daemon/entry.js");
-		},
+		_daemon: () =>
+			defineCommand({
+				meta: { hidden: true },
+				async run() {
+					await import("../daemon/entry.js");
+				},
+			}),
 	},
 });
 

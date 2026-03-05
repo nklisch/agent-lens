@@ -138,7 +138,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 						return { content: [{ type: "text" as const, text }] };
 					}
 					resolvedCommand = command ?? converted.options.command;
-					resolvedLanguage = language ?? converted.options.language;
+					resolvedLanguage = language ?? (converted.options.language as typeof language);
 					resolvedCwd = cwd ?? converted.options.cwd;
 					resolvedEnv = env ?? converted.options.env;
 				}

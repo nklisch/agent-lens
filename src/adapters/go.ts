@@ -4,6 +4,7 @@ import { access } from "node:fs/promises";
 import type { Socket } from "node:net";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve as resolvePath } from "node:path";
+import { LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
 import { allocatePort, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
 

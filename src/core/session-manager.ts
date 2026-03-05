@@ -52,6 +52,8 @@ export interface AttachOptions {
 	language: string;
 	/** Working directory */
 	cwd?: string;
+	/** Environment variables for the debug target */
+	env?: Record<string, string>;
 	/** Initial breakpoints */
 	breakpoints?: Array<{ file: string; breakpoints: Breakpoint[] }>;
 	/** Viewport configuration */
@@ -551,6 +553,8 @@ export class SessionManager {
 			pendingStopPromise: null,
 			lastExceptionInfo: null,
 			isAttached: true,
+			framework: null,
+			frameworkWarnings: [],
 		};
 
 		// Session timeout

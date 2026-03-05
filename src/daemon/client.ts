@@ -19,7 +19,7 @@ export class DaemonClient {
 	private requestId = 0;
 
 	constructor(options: DaemonClientOptions) {
-		this.options = { requestTimeoutMs: 60_000, ...options };
+		this.options = options;
 	}
 
 	/**

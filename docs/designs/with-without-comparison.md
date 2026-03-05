@@ -82,8 +82,8 @@ Each driver interprets the mode:
 - `cli`: no MCP config; skill file via `--append-system-prompt`
 - `baseline`: neither
 
-**Codex** (`codex.ts`):
-- All modes: Codex doesn't support MCP, so `mcp` and `cli` behave the same — skill content is prepended to the prompt
+**Codex** (`codex.ts`, stubbed — not actively tested):
+- `mcp`/`cli`: skill content prepended to prompt (MCP support to be wired up when Codex testing begins)
 - `baseline`: no skill content
 
 ### Trace Directory Structure
@@ -210,5 +210,3 @@ This triples the number of runs vs single-mode. Mitigations:
 1. **Timeout asymmetry.** Baseline runs might need more time because the agent takes more turns without tools. Should baseline get a longer timeout, or should we keep it equal to make the comparison fair? Leaning toward equal timeouts — if the agent can't solve it in time without tools, that's a valid data point.
 
 2. **Should we capture the agent's strategy?** Beyond pass/fail, it would be interesting to categorize *how* the agent approached the bug in each mode (read code, add prints, use debugger, guess-and-check). This is hard to automate but could be done manually for showcase scenarios.
-
-3. **Codex MCP support.** If Codex gains MCP support, the `mcp` mode becomes meaningful for it too. The driver abstraction handles this — just add `--mcp-config` to the codex driver's `mcp` mode.

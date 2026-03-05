@@ -1,7 +1,7 @@
 import { chmod, cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import type { AgentDriver, RunMode, RunResult, Scenario, ValidationResult, Workspace } from "./config.js";
+import type { AgentDriver, AgentRunResult, RunMode, RunResult, Scenario, ValidationResult, Workspace } from "./config.js";
 import { spawnCapture } from "./spawn.js";
 
 const MCP_SERVER_PATH = resolve(import.meta.dirname, "../../../src/mcp/index.ts");
@@ -152,8 +152,8 @@ export async function runScenario(agent: AgentDriver, scenario: Scenario, traceD
 
 	let visibleTestBefore = false;
 	let visibleTestAfter = false;
-	let agentRunResult = {
-		exitCode: null as number | null,
+	let agentRunResult: AgentRunResult = {
+		exitCode: null,
 		stdout: "",
 		stderr: "",
 		timedOut: false,
