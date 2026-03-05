@@ -1,0 +1,18 @@
+{
+	"scenario": {
+		"name": "node-var-closure",
+		"language": "node",
+		"description": "Closures in a for loop with var all capture the same variable, so every validator checks the last range instead of its own",
+		"timeout_seconds": 180,
+		"max_budget_usd": 0.75
+	},
+	"setup": {
+		"commands": []
+	},
+	"visible_test": {
+		"command": "node --test test-validators.js 2>&1"
+	},
+	"validation": {
+		"command": "node --test test_validation.js 2>&1"
+	}
+}
