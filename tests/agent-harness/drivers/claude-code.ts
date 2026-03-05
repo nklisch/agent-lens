@@ -75,19 +75,24 @@ const claudeCode: AgentDriver = {
 
 	async run(options: AgentRunOptions): Promise<AgentRunResult> {
 		const start = Date.now();
-		const args: string[] = ["-p", options.prompt, "--mcp-config", options.mcpConfigPath, "--dangerously-skip-permissions", "--max-turns", "50", "--output-format", "stream-json", "--verbose"];
+		const args: string[] = [
+			"-p",
+			options.prompt,
+			"--dangerously-skip-permissions",
+			"--max-turns",
+			"50",
+			"--output-format",
+			"stream-json",
+			"--verbose",
+		];
 
 		if (options.maxBudgetUsd !== undefined) {
 			args.push("--max-budget-usd", String(options.maxBudgetUsd));
 		}
 
-		// Unset CLAUDECODE to avoid "nested session" detection when
-		// the harness itself is running inside a Claude Code session.
-		const env = { ...options.env, CLAUDECODE: "" };
-
 		const result = await spawnCapture("claude", args, {
 			cwd: options.workDir,
-			env,
+			env: options.env,
 			timeoutMs: options.timeoutMs,
 		});
 
