@@ -19,10 +19,9 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { discoverAgents } from "./lib/agents.js";
-import type { AgentDriver } from "./lib/config.js";
+import type { AgentDriver, Scenario } from "./lib/config.js";
 import { runScenario } from "./lib/harness.js";
 import { discoverScenarios } from "./lib/scenarios.js";
-import type { Scenario } from "./lib/config.js";
 import { initSuiteDir, writeSuiteMeta } from "./lib/trace.js";
 
 // Discover scenarios and agents once at module load time.

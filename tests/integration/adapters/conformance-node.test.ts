@@ -1,10 +1,13 @@
 import { resolve } from "node:path";
 import { describe } from "vitest";
 import { NodeAdapter } from "../../../src/adapters/node.js";
+import { registerAllAdapters } from "../../../src/adapters/registry.js";
 import { createSessionManager } from "../../../src/core/session-manager.js";
 import type { ConformanceFixture } from "../../harness/adapter-conformance.js";
 import { runConformanceSuite } from "../../harness/adapter-conformance.js";
 import { SKIP_NO_NODE_DEBUG } from "../../helpers/node-check.js";
+
+registerAllAdapters();
 
 const FIXTURE_PATH = resolve(import.meta.dirname, "../../fixtures/node/conformance.js");
 

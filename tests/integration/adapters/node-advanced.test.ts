@@ -1,8 +1,11 @@
 import { resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { registerAllAdapters } from "../../../src/adapters/registry.js";
 import { SessionManager } from "../../../src/core/session-manager.js";
 import { ResourceLimitsSchema } from "../../../src/core/types.js";
 import { SKIP_NO_NODE_DEBUG } from "../../helpers/node-check.js";
+
+registerAllAdapters();
 
 const SIMPLE_LOOP = resolve(import.meta.dirname, "../../fixtures/node/simple-loop.js");
 
@@ -36,11 +39,11 @@ describe.skipIf(SKIP_NO_NODE_DEBUG)("Node.js advanced debugging", () => {
 		it("conditional breakpoint works", async () => {
 			const result = await manager.launch({
 				command: `node ${SIMPLE_LOOP}`,
-				language: "javascript",
+				language: "node",
 				breakpoints: [
 					{
 						file: SIMPLE_LOOP,
-						breakpoints: [{ line: 3, condition: "i === 3" }],
+						breakpoints: [{ line: 8, condition: "i === 3" }],
 					},
 				],
 			});
@@ -68,7 +71,7 @@ describe.skipIf(SKIP_NO_NODE_DEBUG)("Node.js advanced debugging", () => {
 		it("getCapabilities returns structured info for Node.js sessions", async () => {
 			const result = await manager.launch({
 				command: `node ${SIMPLE_LOOP}`,
-				language: "javascript",
+				language: "node",
 				stopOnEntry: true,
 			});
 			sessionId = result.sessionId;

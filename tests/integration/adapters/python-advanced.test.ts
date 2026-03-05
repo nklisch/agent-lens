@@ -1,8 +1,11 @@
 import { resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { registerAllAdapters } from "../../../src/adapters/registry.js";
 import { SessionManager } from "../../../src/core/session-manager.js";
 import { ResourceLimitsSchema } from "../../../src/core/types.js";
 import { SKIP_NO_DEBUGPY } from "../../helpers/debugpy-check.js";
+
+registerAllAdapters();
 
 const SIMPLE_LOOP = resolve(import.meta.dirname, "../../fixtures/python/simple-loop.py");
 const EXCEPTION_RAISING = resolve(import.meta.dirname, "../../fixtures/python/exception-raising.py");
@@ -89,6 +92,7 @@ describe.skipIf(SKIP_NO_DEBUGPY)("Python advanced debugging", () => {
 		it("exception breakpoint stops on raised exception with exception info", async () => {
 			const result = await manager.launch({
 				command: `python3 ${EXCEPTION_RAISING}`,
+				stopOnEntry: true,
 			});
 			sessionId = result.sessionId;
 

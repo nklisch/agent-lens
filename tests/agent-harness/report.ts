@@ -12,7 +12,7 @@
  *   bun run test:agent:report --out report.md        # write to file
  */
 
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { RunResult } from "./lib/config.js";
 

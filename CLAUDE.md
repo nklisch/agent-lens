@@ -17,6 +17,7 @@ tests/
   e2e/          Full MCP/CLI-to-viewport tests (no mocks)
   fixtures/     Real programs used as debug targets
 docs/           Design docs (VISION, ARCH, UX, SPEC, INTERFACE, TESTING)
+  designs/      Phase design docs — named phase-N-short-description.md
 ```
 
 ## Commands

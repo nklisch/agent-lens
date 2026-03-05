@@ -146,6 +146,14 @@ export class PythonAdapter implements DebugAdapter {
 		return {
 			reader: socket,
 			writer: socket,
+			launchArgs: {
+				// debugpy --listen mode: does not send `initialized` until `attach` is received.
+				// Use launch-first flow so session-manager sends `attach` before awaiting `initialized`.
+				_dapFlow: "launch-first",
+				// debugpy requires non-empty attach arguments (empty {} is falsy in Python and
+				// causes AttachRequest.__init__() to fail). Pass connect info as the args.
+				connect: { host, port },
+			},
 		};
 	}
 

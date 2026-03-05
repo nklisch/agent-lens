@@ -27,9 +27,10 @@ describe.skipIf(SKIP_NO_DEBUGPY)("E2E: exception tracing", () => {
 	});
 
 	it("catches InsufficientFundsError with exception breakpoint", async () => {
-		// 1. Launch
+		// 1. Launch with stopOnEntry so exception breakpoints can be set before the program runs
 		const launchText = await callTool(client, "debug_launch", {
 			command: `python3 ${FIXTURE}`,
+			stop_on_entry: true,
 		});
 		sessionId = launchText.match(/Session: ([a-f0-9]{8})/)?.[1] ?? "";
 		expect(sessionId).toBeTruthy();

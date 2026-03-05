@@ -266,7 +266,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 	// Tool 5: debug_step
 	server.tool(
 		"debug_step",
-		"Step execution in the specified direction. Returns the viewport after stepping.",
+		"Step execution: 'over' steps over function calls, 'into' steps into them, 'out' steps out to the caller. Returns the viewport after stepping.",
 		{
 			session_id: z.string().describe("The active debug session"),
 			direction: z.enum(["over", "into", "out"]).describe("Step granularity: 'over' skips function calls, 'into' enters them, 'out' runs to parent frame"),

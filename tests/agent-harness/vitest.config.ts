@@ -6,16 +6,7 @@ export default defineConfig({
 		// Agent runs are slow and expensive — generous timeouts
 		testTimeout: 300_000, // 5 min per test
 		hookTimeout: 60_000,
-		// Run tests sequentially — each test spawns a real LLM agent
-		pool: "forks",
-		poolOptions: {
-			forks: {
-				singleFork: true,
-			},
-		},
-		// Concurrency off — agents are expensive
-		sequence: {
-			concurrent: false,
-		},
+		// Run sequentially — agents are expensive
+		maxConcurrency: 1,
 	},
 });

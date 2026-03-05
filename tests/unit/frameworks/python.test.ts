@@ -26,9 +26,9 @@ describe("pytestDetector", () => {
 		expect(pytestDetector.detect("python pytest_helper.py", "/p")).toBeNull();
 	});
 
-	it("sets subProcess: true in launchArgs", () => {
+	it("returns launchArgs object", () => {
 		const result = pytestDetector.detect("pytest tests/", "/p");
-		expect(result!.launchArgs).toMatchObject({ subProcess: true });
+		expect(result!.launchArgs).toBeDefined();
 	});
 
 	it("warns about pytest-xdist -n flag", () => {

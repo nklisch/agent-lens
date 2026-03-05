@@ -70,15 +70,15 @@ describe.skipIf(SKIP_NO_NODE_DEBUG)("NodeAdapter integration", () => {
 		}
 	});
 
-	it("launch returns DAPConnection (script errors surface on DAP launch request, not adapter spawn)", async () => {
-		// For Node.js, the js-debug DAP adapter launches independently of the script.
-		// The script path is validated when the DAP launch request is sent, not during adapter.launch().
+	it("launch returns DAPConnection (script errors surface after attach, not during adapter launch)", async () => {
+		// js-debug sends startDebugging before validating the script path.
+		// Errors (e.g. nonexistent script) surface after adapter.launch() returns.
 		adapter = new NodeAdapter();
 		const connection = await adapter.launch({ command: "node /nonexistent/path/script.js" });
 		expect(connection.reader).toBeDefined();
 		expect(connection.writer).toBeDefined();
-		// launchArgs carries the program path for the DAP launch request
-		expect(connection.launchArgs?.program).toContain("/nonexistent/path/script.js");
+		// launchArgs has the child session config (includes __pendingTargetId from startDebugging)
+		expect(connection.launchArgs?.__pendingTargetId).toBeDefined();
 	});
 });
 

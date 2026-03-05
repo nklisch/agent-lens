@@ -3,7 +3,7 @@
 		"name": "python-discount-bug",
 		"language": "python",
 		"description": "Gold tier discount multiplier is 1.0 (100%) instead of 0.1 (10%), causing gold customers to receive a 100% discount",
-		"timeout_seconds": 120,
+		"timeout_seconds": 180,
 		"max_budget_usd": 0.5
 	},
 	"setup": {

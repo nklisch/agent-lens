@@ -205,6 +205,9 @@ export class CppAdapter implements DebugAdapter {
 			writer: child.stdin!,
 			process: child,
 			launchArgs: {
+				// GDB sends `initialized` immediately after `initialize`, so `launch`
+				// must be sent before `configurationDone` (use launch-first flow).
+				_dapFlow: "launch-first",
 				program: binaryPath,
 				cwd,
 				env: config.env ?? {},

@@ -243,6 +243,11 @@ export class SessionManager {
 			...adapterLaunchArgs,
 			...(frameworkOverrides?.launchArgs ?? {}),
 		};
+		// debugpy (and others) treat program/module/code as mutually exclusive.
+		// If the adapter supplied module or code, remove the default program field.
+		if (dapLaunchArgs.module !== undefined || dapLaunchArgs.code !== undefined) {
+			delete dapLaunchArgs.program;
+		}
 
 		// Register `initialized` event listener before initialize() so we never miss it.
 		const initializedPromise = new Promise<void>((resolve) => {
@@ -297,8 +302,17 @@ export class SessionManager {
 				}
 			}
 
-			await dapClient.configurationDone();
-			await dapClient.launch(dapLaunchArgs as DebugProtocol.LaunchRequestArguments);
+			// Send configurationDone and launch concurrently: some adapters (e.g. js-debug)
+			// only respond to configurationDone after receiving launch, so we must not
+			// await configurationDone before sending launch.
+			const configDonePromise = dapClient.configurationDone();
+			if (dapFlow === "standard-attach") {
+				// js-debug child session: send "attach" with __pendingTargetId from startDebugging.
+				await dapClient.send("attach", dapLaunchArgs);
+			} else {
+				await dapClient.launch(dapLaunchArgs as DebugProtocol.LaunchRequestArguments);
+			}
+			await configDonePromise;
 		}
 
 		// Create session object
@@ -501,8 +515,10 @@ export class SessionManager {
 				}
 			}
 
-			await dapClient.configurationDone();
+			// Send configurationDone and attach concurrently (same reasoning as launch path above).
+			const configDonePromise = dapClient.configurationDone();
 			await dapClient.send("attach", dapAttachArgs);
+			await configDonePromise;
 		}
 
 		// 6. Create session
@@ -803,9 +819,10 @@ export class SessionManager {
 					? scopes
 					: scopes.filter((s) => {
 							const name = s.name.toLowerCase();
-							if (scope === "local") return name === "locals" || name === "local";
-							if (scope === "global") return name === "globals" || name === "global";
-							if (scope === "closure") return name === "closure" || name === "free variables";
+							// Prefix matching handles adapters that append context (e.g. js-debug: "Local: main", "Block: main").
+							if (scope === "local") return name.startsWith("local") || name.startsWith("block");
+							if (scope === "global") return name.startsWith("global");
+							if (scope === "closure") return name.startsWith("closure") || name === "free variables";
 							return false;
 						});
 

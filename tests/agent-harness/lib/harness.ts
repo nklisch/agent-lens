@@ -2,6 +2,7 @@ import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { AgentDriver, RunResult, Scenario, ValidationResult, Workspace } from "./config.js";
+import { spawnCapture } from "./spawn.js";
 
 const MCP_SERVER_PATH = resolve(import.meta.dirname, "../../../src/mcp/index.ts");
 
@@ -17,25 +18,10 @@ async function readAgentLensVersion(): Promise<string> {
 
 const AGENT_LENS_VERSION = await readAgentLensVersion();
 
-// --- Git helpers ---
+// --- Shell helper ---
 
-interface ExecResult {
-	exitCode: number | null;
-	stdout: string;
-	stderr: string;
-}
-
-async function exec(cmd: string, cwd: string, env?: Record<string, string>): Promise<ExecResult> {
-	const proc = Bun.spawn(["bash", "-c", cmd], {
-		cwd,
-		stdout: "pipe",
-		stderr: "pipe",
-		env: { ...process.env, ...env },
-	});
-	const exitCode = await proc.exited;
-	const stdout = await new Response(proc.stdout).text();
-	const stderr = await new Response(proc.stderr).text();
-	return { exitCode, stdout, stderr };
+async function exec(cmd: string, cwd: string, env?: Record<string, string>) {
+	return spawnCapture("bash", ["-c", cmd], { cwd, env });
 }
 
 const GIT_ENV = {

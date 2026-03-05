@@ -4,8 +4,8 @@
  */
 
 import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const CACHE_FILE = join(tmpdir(), "agent-lens-test-cache.json");
 

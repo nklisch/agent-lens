@@ -91,6 +91,9 @@ export class GoAdapter implements DebugAdapter {
 			writer: socket,
 			process: dlvProc,
 			launchArgs: {
+				// Delve sends `initialized` immediately after `initialize`, so `launch`
+				// must be sent before `configurationDone` (use launch-first flow).
+				_dapFlow: "launch-first",
 				mode: parsed.mode,
 				program: absProgram,
 				args: parsed.args,

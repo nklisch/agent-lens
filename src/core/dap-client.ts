@@ -40,6 +40,12 @@ export class DAPClient {
 	private _capabilities: DebugProtocol.Capabilities | null = null;
 	private _connected = false;
 	private _disposed = false;
+	/**
+	 * Buffers the most recent unhandled stop/terminate/exit event so that
+	 * waitForStop() can resolve even if the event arrived before it was called.
+	 * Consumed (set to null) on each waitForStop() call.
+	 */
+	private _pendingStopResult: StopResult | null = null;
 
 	constructor(options?: Partial<DAPClientOptions>) {
 		this.options = { ...DEFAULT_DAP_CLIENT_OPTIONS, ...options };
@@ -168,8 +174,17 @@ export class DAPClient {
 	 * Wait for the debugee to stop (breakpoint, step, exception, pause)
 	 * or terminate. Returns a discriminated union.
 	 * Rejects after timeoutMs (default: options.stopTimeoutMs).
+	 *
+	 * If a stop event arrived before this call (race condition, e.g. breakpoint
+	 * hit between setBreakpoints and debug_continue), the buffered result is
+	 * returned immediately and the buffer is cleared.
 	 */
 	waitForStop(timeoutMs?: number): Promise<StopResult> {
+		if (this._pendingStopResult) {
+			const result = this._pendingStopResult;
+			this._pendingStopResult = null;
+			return Promise.resolve(result);
+		}
 		const timeout = timeoutMs ?? this.options.stopTimeoutMs;
 		return new Promise((resolve, reject) => {
 			let resolved = false;
@@ -377,9 +392,19 @@ export class DAPClient {
 		} else if (message.type === "event") {
 			const event = message as DebugProtocol.Event;
 			const handlers = this.eventHandlers.get(event.event);
-			if (handlers) {
+			if (handlers && handlers.length > 0) {
 				for (const handler of [...handlers]) {
 					handler(event);
+				}
+			} else if (event.event === "stopped" || event.event === "terminated" || event.event === "exited") {
+				// No handler registered yet — buffer the stop result so waitForStop()
+				// can consume it even if called after the event arrived.
+				if (event.event === "stopped") {
+					this._pendingStopResult = { type: "stopped", event: event as DebugProtocol.StoppedEvent };
+				} else if (event.event === "terminated") {
+					this._pendingStopResult = { type: "terminated", event: event as DebugProtocol.TerminatedEvent };
+				} else {
+					this._pendingStopResult = { type: "exited", event: event as DebugProtocol.ExitedEvent };
 				}
 			}
 		}

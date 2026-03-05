@@ -1,8 +1,11 @@
 import { resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { registerAllAdapters } from "../../../src/adapters/registry.js";
 import { SessionManager } from "../../../src/core/session-manager.js";
 import { ResourceLimitsSchema } from "../../../src/core/types.js";
 import { SKIP_NO_DLV } from "../../helpers/dlv-check.js";
+
+registerAllAdapters();
 
 const SIMPLE_LOOP = resolve(import.meta.dirname, "../../fixtures/go/simple-loop.go");
 

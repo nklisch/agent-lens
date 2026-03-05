@@ -3,9 +3,9 @@
  * Uses Node.js built-in test runner (node --test).
  */
 
-import { test, before } from "node:test";
 import assert from "node:assert/strict";
-import { cacheSet, cacheGet, cacheClear } from "./file-cache.js";
+import { before, test } from "node:test";
+import { cacheClear, cacheGet, cacheSet } from "./file-cache.js";
 
 before(async () => {
 	await cacheClear();

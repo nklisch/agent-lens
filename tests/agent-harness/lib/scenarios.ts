@@ -1,7 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { ScenarioConfigSchema } from "./config.js";
 import type { Scenario } from "./config.js";
+import { ScenarioConfigSchema } from "./config.js";
 
 const SCENARIOS_DIR = resolve(import.meta.dirname, "../scenarios");
 

@@ -17,11 +17,7 @@ export const pytestDetector: FrameworkDetector = {
 		if (!PYTEST_PATTERN.test(command)) return null;
 
 		const warnings: string[] = [];
-		const launchArgs: Record<string, unknown> = {
-			// Enable subprocess debugging so debugpy attaches to pytest's
-			// child processes (e.g., when pytest uses subprocesses for isolation)
-			subProcess: true,
-		};
+		const launchArgs: Record<string, unknown> = {};
 
 		// Warn about incompatible modes
 		if (XDIST_PATTERN.test(command)) {
