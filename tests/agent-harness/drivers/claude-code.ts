@@ -3,9 +3,33 @@ import type { AgentDriver, AgentMetrics, AgentRunOptions, AgentRunResult } from 
 import { spawnCapture } from "../lib/spawn.js";
 
 /**
+ * Format a stream-json event as a compact log line.
+ */
+function formatEvent(data: Record<string, unknown>): string | null {
+	switch (data.type) {
+		case "system":
+			if (data.subtype === "init") return `[init] model=${data.model} tools=${(data.tools as string[])?.length ?? 0}`;
+			return null;
+		case "assistant": {
+			const msg = data.message as { content?: Array<{ type: string; text?: string; name?: string }> } | undefined;
+			for (const block of msg?.content ?? []) {
+				if (block.type === "tool_use" && block.name) return `[tool] ${block.name}`;
+				if (block.type === "text" && block.text) {
+					const preview = block.text.slice(0, 120).replace(/\n/g, " ");
+					return `[text] ${preview}${block.text.length > 120 ? "…" : ""}`;
+				}
+			}
+			return null;
+		}
+		case "result":
+			return `[done] turns=${data.num_turns} cost=$${data.cost_usd ?? "?"}`;
+		default:
+			return null;
+	}
+}
+
+/**
  * Parse metrics from Claude Code stream-json output.
- * Claude Code emits newline-delimited JSON events. The "result" event at the
- * end contains cost, turns, and token usage.
  */
 function parseClaudeMetrics(stdout: string): Partial<AgentMetrics> {
 	const lines = stdout.split("\n").filter((l) => l.trim().startsWith("{"));
@@ -16,12 +40,10 @@ function parseClaudeMetrics(stdout: string): Partial<AgentMetrics> {
 		try {
 			const data = JSON.parse(line) as Record<string, unknown>;
 
-			// Capture model from system init event
 			if (data.type === "system" && data.subtype === "init" && typeof data.model === "string") {
 				model = data.model;
 			}
 
-			// Count tool_use events (appear as content blocks in assistant messages)
 			if (data.type === "assistant" && data.message) {
 				const msg = data.message as { content?: Array<{ type: string; name?: string }> };
 				for (const block of msg.content ?? []) {
@@ -31,7 +53,6 @@ function parseClaudeMetrics(stdout: string): Partial<AgentMetrics> {
 				}
 			}
 
-			// Extract metrics from result event
 			if (data.type === "result") {
 				const usage = data.usage as Record<string, number> | undefined;
 				const cost = typeof data.total_cost_usd === "number" ? data.total_cost_usd : typeof data.cost_usd === "number" ? data.cost_usd : null;
@@ -75,25 +96,31 @@ const claudeCode: AgentDriver = {
 
 	async run(options: AgentRunOptions): Promise<AgentRunResult> {
 		const start = Date.now();
-		const args: string[] = [
-			"-p",
-			options.prompt,
-			"--dangerously-skip-permissions",
-			"--max-turns",
-			"50",
-			"--output-format",
-			"stream-json",
-			"--verbose",
-		];
+		const args: string[] = ["-p", options.prompt, "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"];
 
 		if (options.maxBudgetUsd !== undefined) {
 			args.push("--max-budget-usd", String(options.maxBudgetUsd));
 		}
 
+		const sessionLog: string[] = [];
+
 		const result = await spawnCapture("claude", args, {
 			cwd: options.workDir,
 			env: options.env,
 			timeoutMs: options.timeoutMs,
+			cleanEnv: true,
+			onStdoutLine(line) {
+				try {
+					const data = JSON.parse(line) as Record<string, unknown>;
+					const formatted = formatEvent(data);
+					if (formatted) {
+						sessionLog.push(formatted);
+						console.error(`  claude-code │ ${formatted}`);
+					}
+				} catch {
+					// not JSON, ignore
+				}
+			},
 		});
 
 		return {
@@ -102,6 +129,7 @@ const claudeCode: AgentDriver = {
 			stderr: result.stderr,
 			timedOut: result.timedOut,
 			durationMs: Date.now() - start,
+			sessionLog,
 		};
 	},
 

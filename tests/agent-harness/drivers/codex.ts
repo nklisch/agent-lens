@@ -58,6 +58,7 @@ const codex: AgentDriver = {
 			cwd: options.workDir,
 			env: options.env,
 			timeoutMs: options.timeoutMs,
+			cleanEnv: true,
 		});
 
 		return {

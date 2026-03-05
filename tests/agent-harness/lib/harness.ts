@@ -89,6 +89,9 @@ export async function prepareWorkspace(scenario: Scenario): Promise<Workspace> {
 	// Copy scenario src/ into workspace
 	await cp(scenario.srcDir, workDir, { recursive: true });
 
+	// Add .gitignore to avoid noise from bytecode files
+	await writeFile(join(workDir, ".gitignore"), "__pycache__/\n*.pyc\nnode_modules/\n");
+
 	// Initialize git repo so we can diff agent changes
 	await initGitRepo(workDir);
 
@@ -142,6 +145,7 @@ export async function runScenario(agent: AgentDriver, scenario: Scenario, traceD
 
 		// Read prompt
 		const prompt = await readFile(scenario.promptPath, "utf-8");
+		console.error(`[harness] ${agent.name} × ${scenario.name} → ${workspace.workDir}`);
 
 		// Run agent
 		agentRunResult = await agent.run({
@@ -178,6 +182,7 @@ export async function runScenario(agent: AgentDriver, scenario: Scenario, traceD
 		durationMs: agentRunResult.durationMs,
 		timedOut: agentRunResult.timedOut,
 		agentExitCode: agentRunResult.exitCode,
+		agentStderr: agentRunResult.stderr,
 		metrics,
 		agentLensVersion: AGENT_LENS_VERSION,
 		visibleTestBefore,
@@ -195,13 +200,14 @@ export async function runScenario(agent: AgentDriver, scenario: Scenario, traceD
 
 // --- Trace saving (inline to avoid circular dep with trace.ts) ---
 
-async function saveRunTrace(suiteDir: string, agentName: string, scenarioName: string, result: RunResult, agentRun: { stdout: string; stderr: string }, workDir: string): Promise<void> {
+async function saveRunTrace(suiteDir: string, agentName: string, scenarioName: string, result: RunResult, agentRun: { stdout: string; stderr: string; sessionLog?: string[] }, workDir: string): Promise<void> {
 	const traceDir = join(suiteDir, agentName, scenarioName);
 	await mkdir(traceDir, { recursive: true });
 
 	await writeFile(join(traceDir, "result.json"), JSON.stringify(result, null, 2));
 	await writeFile(join(traceDir, "agent-stdout.txt"), agentRun.stdout);
 	await writeFile(join(traceDir, "agent-stderr.txt"), agentRun.stderr);
+	await writeFile(join(traceDir, "session.log"), (agentRun.sessionLog ?? []).join("\n"));
 	await writeFile(join(traceDir, "workspace-diff.patch"), result.diff);
 	await writeFile(join(traceDir, "validation-stdout.txt"), result.validation.stdout);
 }

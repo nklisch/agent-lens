@@ -80,6 +80,8 @@ export interface AgentRunResult {
 	stderr: string;
 	timedOut: boolean;
 	durationMs: number;
+	/** Human-readable session log lines (optional, driver-provided) */
+	sessionLog?: string[];
 }
 
 // --- Metrics extracted from agent output ---
@@ -119,6 +121,7 @@ export interface RunResult {
 	durationMs: number;
 	timedOut: boolean;
 	agentExitCode: number | null;
+	agentStderr: string;
 	metrics: AgentMetrics;
 	agentLensVersion: string;
 	visibleTestBefore: boolean;
