@@ -4,14 +4,17 @@
  * Runs real agent binaries against buggy code scenarios and validates the fix
  * using a hidden test the agent never saw.
  *
- * Each scenario runs in two modes:
+ * Each scenario runs in three modes:
  *   - baseline: no agent-lens at all — agent relies on code reading, tests, shell
  *   - cli:      agent-lens CLI + skill file available — agent uses bash commands
  *   - mcp:      agent-lens MCP server configured — agent can use debug_* tools
  *
+ * NOTE: Currently focused on Claude Code as the primary agent under test.
+ * Other agent drivers (Codex, etc.) are stubbed but not actively tested.
+ *
  * This test suite is NOT run in CI. Run it manually:
  *
- *   bun run test:agent                                                  # all agents × all scenarios × both modes
+ *   bun run test:agent                                                  # all agents × all scenarios × all modes
  *   AGENT=claude-code bun run test:agent                                # one agent
  *   SCENARIO=python-discount-bug bun run test:agent                     # one scenario
  *   MODE=mcp bun run test:agent                                          # one mode only

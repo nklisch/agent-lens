@@ -8,6 +8,10 @@ The harness today answers "can an agent fix this bug using agent-lens?" but not 
 
 This also directly supports [showcase narrative #6](showcase-narratives.md) (tool usage patterns) and the "difficulty progression" story — showing that easy bugs don't need debugging tools but hard ones do.
 
+## Scope
+
+**Primary focus: Claude Code.** All three modes (mcp, cli, baseline) are actively tested with Claude Code. Other agent drivers (Codex, etc.) are stubbed out in the harness but not actively tested — cross-agent comparison can be expanded later once the scenarios and reporting are proven with Claude Code.
+
 ## Design
 
 ### Run Modes
