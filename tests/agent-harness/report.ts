@@ -19,7 +19,7 @@ import { basename, join, resolve } from "node:path";
 import type { RunMode, RunResult, TokenUsage, ToolEvent } from "./lib/config.js";
 import { getTracesDir } from "./lib/trace.js";
 
-const MODE_NAMES: RunMode[] = ["tools", "baseline"];
+const MODE_NAMES: RunMode[] = ["mcp", "cli", "baseline"];
 
 // ============================================
 // TYPES — site-consumable report shape
@@ -194,7 +194,7 @@ function slimResult(r: RunResult): ReportResult {
 	return {
 		scenario: r.scenario,
 		agent: r.agent,
-		mode: r.mode ?? "tools",
+		mode: r.mode ?? "mcp",
 		passed: r.passed,
 		durationMs: r.durationMs,
 		timedOut: r.timedOut,
@@ -211,7 +211,7 @@ function buildAgentSummaries(results: RunResult[]): AgentSummary[] {
 	// Group by agent + mode so tools vs baseline are shown separately.
 	const agentMap = new Map<string, { name: string; mode: RunMode | null; runs: RunResult[] }>();
 	for (const r of results) {
-		const resultMode = r.mode ?? "tools";
+		const resultMode = r.mode ?? "mcp";
 		const key = `${r.agent}::${resultMode}`;
 		const entry = agentMap.get(key) ?? { name: r.agent, mode: resultMode, runs: [] };
 		entry.runs.push(r);
@@ -386,8 +386,12 @@ function generateMarkdown(report: Report): string {
 	lines.push("## Results");
 	lines.push("");
 
-	// Collect agent names (deduplicated, ignoring mode)
+	// Collect unique agent names and modes present in the data
 	const agentNames = [...new Set(report.results.map((r) => r.agent))].sort();
+	const modesPresent = [...new Set(report.results.map((r) => r.mode ?? "mcp"))];
+	// Sort modes in canonical order
+	const modeOrder: Record<string, number> = { baseline: 0, cli: 1, mcp: 2 };
+	modesPresent.sort((a, b) => (modeOrder[a] ?? 99) - (modeOrder[b] ?? 99));
 
 	for (const scenario of report.scenarios) {
 		const scenarioResults = report.results.filter((r) => r.scenario === scenario.name);
@@ -395,32 +399,27 @@ function generateMarkdown(report: Report): string {
 		lines.push(`*${scenario.language} — ${scenario.description}*`);
 		lines.push("");
 
-		if (withModes && agentNames.length > 0) {
-			// Paired comparison: one row per agent, tools vs baseline side by side
-			lines.push("| Agent | With Tools | Without Tools | Lift |");
-			lines.push("|-------|-----------|---------------|------|");
+		if (withModes && modesPresent.length > 1) {
+			// Multi-mode comparison: one column per mode
+			const fmtCell = (r: ReportResult | undefined): string => {
+				if (!r) return "—";
+				const status = r.passed ? "**PASS**" : "FAIL";
+				const dur = fmt(r.durationMs);
+				const turns = r.metrics.numTurns != null ? `${r.metrics.numTurns}t` : "";
+				const detail = [dur, turns].filter(Boolean).join(", ");
+				return `${status} (${detail})`;
+			};
+
+			const modeHeaders = modesPresent.join(" | ");
+			const modeSep = modesPresent.map(() => "---").join(" | ");
+			lines.push(`| Agent | ${modeHeaders} |`);
+			lines.push(`|-------|${modeSep}|`);
 			for (const agentName of agentNames) {
-				const toolsResult = scenarioResults.find((r) => r.agent === agentName && (r.mode ?? "tools") === "tools");
-				const baselineResult = scenarioResults.find((r) => r.agent === agentName && r.mode === "baseline");
-
-				const fmtCell = (r: ReportResult | undefined): string => {
-					if (!r) return "—";
-					const status = r.passed ? "**PASS**" : "FAIL";
-					const dur = fmt(r.durationMs);
-					const turns = r.metrics.numTurns != null ? `${r.metrics.numTurns}t` : "";
-					const detail = [dur, turns].filter(Boolean).join(", ");
-					return `${status} (${detail})`;
-				};
-
-				const liftIcon = (): string => {
-					if (!toolsResult || !baselineResult) return "—";
-					if (toolsResult.passed && !baselineResult.passed) return "+1 (tools wins)";
-					if (!toolsResult.passed && baselineResult.passed) return "-1 (baseline wins)";
-					if (toolsResult.passed && baselineResult.passed) return "tie (both pass)";
-					return "tie (both fail)";
-				};
-
-				lines.push(`| ${agentName} | ${fmtCell(toolsResult)} | ${fmtCell(baselineResult)} | ${liftIcon()} |`);
+				const cells = modesPresent.map((m) => {
+					const r = scenarioResults.find((r) => r.agent === agentName && (r.mode ?? "mcp") === m);
+					return fmtCell(r);
+				});
+				lines.push(`| ${agentName} | ${cells.join(" | ")} |`);
 			}
 		} else {
 			// Single-mode view
@@ -432,17 +431,17 @@ function generateMarkdown(report: Report): string {
 		}
 		lines.push("");
 
-		// Result summaries (tools mode only to avoid noise)
+		// Result summaries (mcp mode preferred, falling back to any)
 		for (const r of scenarioResults) {
-			if (r.resultSummary && (r.mode ?? "tools") === "tools") {
+			if (r.resultSummary && (r.mode ?? "mcp") === "mcp") {
 				lines.push(`> **${r.agent}:** ${r.resultSummary}`);
 				lines.push("");
 			}
 		}
 	}
 
-	// Tool usage (tools-mode runs only)
-	const toolsResults = report.results.filter((r) => (r.mode ?? "tools") === "tools");
+	// Tool usage (mcp + cli runs only — baseline has no debug tools)
+	const toolsResults = report.results.filter((r) => (r.mode ?? "mcp") !== "baseline");
 	const toolTotals = new Map<string, number>();
 	for (const r of toolsResults) {
 		for (const [tool, count] of Object.entries(r.metrics.toolCalls ?? {})) {
@@ -451,7 +450,7 @@ function generateMarkdown(report: Report): string {
 	}
 
 	if (toolTotals.size > 0) {
-		lines.push("## Tool Usage (tools mode)");
+		lines.push("## Tool Usage (mcp + cli modes)");
 		lines.push("");
 		lines.push("| Tool | Total Calls | Avg per Run |");
 		lines.push("|------|-------------|-------------|");

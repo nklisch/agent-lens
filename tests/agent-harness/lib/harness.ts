@@ -129,7 +129,7 @@ function extractResultSummary(stdout: string): string | null {
 
 // --- Full scenario run ---
 
-export async function runScenario(agent: AgentDriver, scenario: Scenario, traceDir: string, mode: RunMode = "tools"): Promise<RunResult> {
+export async function runScenario(agent: AgentDriver, scenario: Scenario, traceDir: string, mode: RunMode = "mcp"): Promise<RunResult> {
 	const timestamp = new Date().toISOString();
 	const workspace = await prepareWorkspace(scenario);
 
@@ -151,11 +151,14 @@ export async function runScenario(agent: AgentDriver, scenario: Scenario, traceD
 		visibleTestBefore = preFail.passed;
 
 		const prompt = await readFile(scenario.promptPath, "utf-8");
+		// Skill file teaches debugging strategy — only relevant when tools are available
 		let skillContent = "";
-		try {
-			skillContent = await readFile(SKILL_PATH, "utf-8");
-		} catch {
-			// Skill file missing — continue without it
+		if (mode !== "baseline") {
+			try {
+				skillContent = await readFile(SKILL_PATH, "utf-8");
+			} catch {
+				// Skill file missing — continue without it
+			}
 		}
 		console.error(`[harness] ${agent.name} × ${scenario.name} [${mode}] → ${workspace.workDir}`);
 

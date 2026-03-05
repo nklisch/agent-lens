@@ -151,7 +151,7 @@ const claudeCode: AgentDriver = {
 		const start = Date.now();
 		const args: string[] = ["-p", options.prompt, "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"];
 
-		if (options.mode === "tools") {
+		if (options.mode === "mcp") {
 			args.push("--mcp-config", options.mcpConfigPath);
 		}
 

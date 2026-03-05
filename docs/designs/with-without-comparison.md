@@ -1,10 +1,10 @@
 # With vs Without Debugging Tools — Comparison Runs
 
-Extension to the [agent test harness](agent-test-harness.md). Every scenario runs twice per agent: once with agent-lens MCP tools available, once without. This produces paired results that show the value of runtime debugging for each scenario.
+Extension to the [agent test harness](agent-test-harness.md). Every scenario runs in three modes per agent, producing results that show the value of each agent-lens interface.
 
 ## Motivation
 
-The harness today answers "can an agent fix this bug using agent-lens?" but not "would it have fixed it anyway?" Without a baseline, a 100% pass rate could mean agent-lens is essential or that the bugs are too easy. Paired runs answer the real question: **which bugs does runtime debugging actually help with?**
+The harness today answers "can an agent fix this bug using agent-lens?" but not "would it have fixed it anyway?" Without a baseline, a 100% pass rate could mean agent-lens is essential or that the bugs are too easy. Multi-mode runs answer the real question: **which bugs does runtime debugging actually help with, and does the interface matter?**
 
 This also directly supports [showcase narrative #6](showcase-narratives.md) (tool usage patterns) and the "difficulty progression" story — showing that easy bugs don't need debugging tools but hard ones do.
 
@@ -12,18 +12,23 @@ This also directly supports [showcase narrative #6](showcase-narratives.md) (too
 
 ### Run Modes
 
-Each scenario x agent combination produces two runs:
+Each scenario x agent combination produces three runs:
 
-| Mode | MCP Config | Label |
-|------|-----------|-------|
-| **with-tools** | agent-lens MCP server configured | `tools` |
-| **without-tools** | No MCP config (or empty) | `baseline` |
+| Mode | MCP Config | Skill File | Label |
+|------|-----------|------------|-------|
+| **mcp** | agent-lens MCP server configured | yes | `mcp` |
+| **cli** | none | yes (teaches CLI usage) | `cli` |
+| **baseline** | none | none | `baseline` |
 
-The prompt is identical in both modes. The only difference is whether the agent has access to `debug_*` tools.
+- **mcp** — agent uses `debug_*` MCP tools (Claude Code's primary path)
+- **cli** — agent calls `agent-lens` CLI via bash (Codex's primary path, also works with Claude Code)
+- **baseline** — no agent-lens at all; agent relies on code reading, test output, and shell
 
-### Prompt Adjustments
+The prompt is identical across all three modes. The skill file (which teaches debugging strategy) is only injected in `mcp` and `cli` modes.
 
-The prompt must work for both modes. This means:
+### Prompt Rules
+
+The prompt must work for all modes. This means:
 - **No mention of agent-lens or debugging tools** (already a rule in [scenario guidelines](scenario-guidelines.md))
 - The agent should be free to use whatever approach it wants — reading code, running tests, adding print statements, or using debug tools if available
 - The prompt describes the symptom and points to the relevant files, nothing more
@@ -35,15 +40,14 @@ This is already the convention. No prompt changes needed.
 The test matrix becomes `scenarios x agents x modes`:
 
 ```typescript
-const modes = ["tools", "baseline"] as const;
-type RunMode = typeof modes[number];
+type RunMode = "mcp" | "cli" | "baseline";
+const modes = ["baseline", "cli", "mcp"] as const;
 
 describe.each(agents)("Agent: $name", (agent) => {
   describe.each(scenarios)("Scenario: $name", (scenario) => {
     describe.each(modes)("Mode: %s", (mode) => {
       it("agent fixes the bug", async () => {
-        const result = await runScenario(agent, scenario, { mode });
-        // Still the same assertion — did the hidden test pass?
+        const result = await runScenario(agent, scenario, suiteDir, mode);
         expect(result.validation.passed).toBe(true);
       });
     });
@@ -51,41 +55,32 @@ describe.each(agents)("Agent: $name", (agent) => {
 });
 ```
 
-When `mode === "baseline"`:
-- No MCP config file is generated
-- The `--mcp-config` flag is omitted from the agent spawn args
-- The `--allowedTools` flag is omitted (or set to exclude `mcp__agent-lens__*`)
-- Everything else is identical: same workspace, same prompt, same timeout, same budget
+What each mode controls:
+- **`mcp`**: MCP config generated and passed via `--mcp-config`; skill file injected
+- **`cli`**: no MCP config; skill file injected (teaches agent to use bash commands)
+- **`baseline`**: no MCP config; no skill file; agent has only its built-in tools
 
-### Driver Interface Extension
+### Driver Interface
 
 ```typescript
 interface AgentRunOptions {
   // ... existing fields ...
 
-  /** Run mode — "tools" includes agent-lens, "baseline" does not */
-  mode: "tools" | "baseline";
+  /** Run mode — controls what agent-lens interfaces are available */
+  mode: "mcp" | "cli" | "baseline";
 }
 ```
 
-Each driver decides how to handle the mode. For Claude Code:
+Each driver interprets the mode:
 
-```typescript
-async run(options) {
-  const args = [
-    "-p", options.prompt,
-    "--max-turns", "50",
-    "--permission-mode", "bypassPermissions",
-  ];
+**Claude Code** (`claude-code.ts`):
+- `mcp`: adds `--mcp-config <path>` flag; skill file via `--append-system-prompt`
+- `cli`: no MCP config; skill file via `--append-system-prompt`
+- `baseline`: neither
 
-  if (options.mode === "tools") {
-    args.push("--mcp-config", options.mcpConfigPath);
-    args.push("--allowedTools", "mcp__agent-lens__*");
-  }
-
-  // ... rest unchanged ...
-}
-```
+**Codex** (`codex.ts`):
+- All modes: Codex doesn't support MCP, so `mcp` and `cli` behave the same — skill content is prepended to the prompt
+- `baseline`: no skill content
 
 ### Trace Directory Structure
 
@@ -96,14 +91,16 @@ Traces include the mode in the path:
   2026-03-04T14-30-00Z/
     claude-code/
       python-discount-bug/
-        tools/
+        mcp/
           result.json
           agent-stdout.txt
           workspace-diff.patch
+        cli/
+          result.json
+          ...
         baseline/
           result.json
-          agent-stdout.txt
-          workspace-diff.patch
+          ...
     report.json
 ```
 
@@ -115,48 +112,41 @@ Each `result.json` includes the mode:
 {
   "scenario": "python-discount-bug",
   "agent": "claude-code",
-  "mode": "tools",
+  "mode": "mcp",
   "passed": true,
-  "duration_ms": 45200,
-  "num_turns": 8,
-  "tool_calls": { "debug_launch": 1, "debug_set_breakpoints": 2, "..." : "..." }
+  "durationMs": 45200,
+  "metrics": { "numTurns": 8, "toolCalls": { "debug_launch": 1, "..." : "..." } }
 }
 ```
-
-Baseline results have `"mode": "baseline"` and `"tool_calls": {}` (no debug tools available).
 
 ## Report Changes
 
 ### Summary Table
 
-The summary gains a column showing the delta:
+The agent summary table groups by agent + mode:
 
 ```markdown
-## Summary
-
-| Agent | Mode | Passed | Failed | Pass Rate |
-|-------|------|--------|--------|-----------|
-| claude-code | tools | 5 | 0 | 100% |
-| claude-code | baseline | 3 | 2 | 60% |
-| codex | tools | 4 | 1 | 80% |
-| codex | baseline | 2 | 3 | 40% |
+| Agent | Mode | Scenarios | Passed | Pass Rate | Avg Duration |
+|-------|------|-----------|--------|-----------|--------------|
+| claude-code | mcp | 5 | 5 | 100% | 42s |
+| claude-code | cli | 5 | 4 | 80% | 55s |
+| claude-code | baseline | 5 | 3 | 60% | 78s |
+| codex | cli | 5 | 4 | 80% | 62s |
+| codex | baseline | 5 | 2 | 40% | 95s |
 ```
 
 ### Per-Scenario Comparison
 
-Each scenario shows paired results side by side:
+Each scenario shows one column per mode present in the data:
 
 ```markdown
-### python-closure-capture (Level 3)
+### python-closure-capture
+*python — Late-binding closure over loop variable*
 
-| Agent | With Tools | Without Tools | Delta |
-|-------|-----------|---------------|-------|
-| claude-code | PASS (45s, 8 turns) | FAIL (120s, 22 turns) | +1 |
-| codex | PASS (68s, 14 turns) | FAIL (95s, 18 turns) | +1 |
-
-**Tools advantage:** Both agents needed runtime state inspection to find the
-late-binding closure bug. Without tools, both attempted fixes based on code
-reading alone and patched the wrong location.
+| Agent | baseline | cli | mcp |
+|-------|----------|-----|-----|
+| claude-code | FAIL (120s, 22t) | PASS (55s, 12t) | PASS (45s, 8t) |
+| codex | FAIL (95s, 18t) | PASS (68s, 14t) | — |
 ```
 
 ### Aggregate Analysis
@@ -164,64 +154,57 @@ reading alone and patched the wrong location.
 ```markdown
 ## Debugging Tools Impact
 
-| Level | With Tools | Without Tools | Lift |
-|-------|-----------|---------------|------|
-| 1-2 (read the code) | 100% | 100% | +0% |
-| 3 (inspect state) | 100% | 50% | +50% |
-| 4 (multi-component) | 80% | 20% | +60% |
-| 5 (subtle/adversarial) | 60% | 0% | +60% |
-
-**Key finding:** Debugging tools provide no advantage for bugs visible in the
-source code (Levels 1-2) but become essential as bugs depend on runtime state
-(Level 3+).
+| Level | baseline | cli | mcp |
+|-------|----------|-----|-----|
+| 1-2 (read the code) | 100% | 100% | 100% |
+| 3 (inspect state) | 50% | 80% | 100% |
+| 4 (multi-component) | 20% | 60% | 80% |
+| 5 (subtle/adversarial) | 0% | 40% | 60% |
 ```
 
-This is the core narrative for agent-lens: **runtime debugging transforms agent capability on non-trivial bugs.**
+The narrative: **MCP gives the richest debugging interface, CLI is a solid middle ground, and baseline shows what agents can do without any debugging tools.**
 
 ## Run Ordering
 
-Run baseline first, then tools. Rationale:
-- Avoids information leakage — the agent's tools run is not influenced by a prior baseline run (workspaces are independent anyway, but this ordering makes it unambiguous)
-- If you're short on time/budget and abort mid-suite, you get baseline data for everything and tools data for some, which is more useful than the reverse
+Modes run in order: baseline, cli, mcp. Rationale:
+- Avoids information leakage (workspaces are independent, but ordering makes it unambiguous)
+- If you abort mid-suite, you get baseline data for everything — the most useful missing data point
 
 ## Filtering
 
 ```bash
-# Run only tools mode (skip baseline — useful during development)
-MODE=tools bun run test:agent
+# Run only MCP mode (useful during development)
+MODE=mcp bun run test:agent
 
 # Run only baseline
 MODE=baseline bun run test:agent
 
-# Both (default)
+# Run MCP + baseline (skip CLI)
+MODE=mcp,baseline bun run test:agent
+
+# All three (default)
 bun run test:agent
 ```
 
 ## Cost Implications
 
-This doubles the number of runs. Mitigations:
-- **Filtering:** `MODE=tools` during development, full comparison for publishable results
-- **Scenario selection:** `SCENARIO=python-closure-capture` to run one scenario in both modes
-- **Level gating:** Skip baseline for Level 1-2 scenarios since we expect no difference — focus comparison budget on Level 3+
+This triples the number of runs vs single-mode. Mitigations:
+- **Filtering:** `MODE=mcp` during development, full comparison for publishable results
+- **Scenario selection:** `SCENARIO=python-closure-capture MODE=mcp,baseline` to compare one scenario
 - **Budget scaling:** Baseline runs may use more tokens (agents without tools tend to flail more). Consider giving baseline runs 1.5x the budget ceiling to avoid timeouts masking capability differences
-
-```typescript
-const budgetMultiplier = mode === "baseline" ? 1.5 : 1.0;
-const effectiveBudget = scenario.maxBudgetUsd * budgetMultiplier;
-```
 
 ## What This Does NOT Do
 
-- **A/B test statistical rigor.** LLM runs are non-deterministic. A single paired run per scenario is directional, not statistically significant. For publishable claims, run each pair N times and report pass rates. The harness supports this (run the suite multiple times, aggregate across `index.json`), but doesn't enforce it.
+- **A/B test statistical rigor.** LLM runs are non-deterministic. A single run per mode is directional, not statistically significant. For publishable claims, run the suite multiple times and aggregate across `index.json`.
 
-- **Test different tool subsets.** We don't test "agent-lens minus eval" or "only breakpoints, no stepping." That's interesting research but out of scope — the comparison is all-or-nothing.
+- **Test different tool subsets.** We don't test "agent-lens minus eval" or "only breakpoints, no stepping." The comparison is at the interface level: MCP vs CLI vs nothing.
 
 - **Control for agent strategy.** An agent without debug tools might still succeed by adding print statements, reading tracebacks carefully, or making educated guesses. That's fine — it's what we're measuring. The question is outcome, not method.
 
 ## Open Questions
 
-1. **Should baseline runs get a different system prompt?** Some agents have skill files or system prompts that reference debugging tools. If those tools aren't available, does the agent waste turns trying to call them? Probably not (agents handle missing tools gracefully), but worth verifying.
+1. **Timeout asymmetry.** Baseline runs might need more time because the agent takes more turns without tools. Should baseline get a longer timeout, or should we keep it equal to make the comparison fair? Leaning toward equal timeouts — if the agent can't solve it in time without tools, that's a valid data point.
 
-2. **Timeout asymmetry.** Baseline runs might need more time because the agent takes more turns without tools. Should baseline get a longer timeout, or should we keep it equal to make the comparison fair? Leaning toward equal timeouts — if the agent can't solve it in time without tools, that's a valid data point.
+2. **Should we capture the agent's strategy?** Beyond pass/fail, it would be interesting to categorize *how* the agent approached the bug in each mode (read code, add prints, use debugger, guess-and-check). This is hard to automate but could be done manually for showcase scenarios.
 
-3. **Should we capture the agent's strategy?** Beyond pass/fail, it would be interesting to categorize *how* the agent approached the bug in each mode (read code, add prints, use debugger, guess-and-check). This is hard to automate but could be done manually for showcase scenarios.
+3. **Codex MCP support.** If Codex gains MCP support, the `mcp` mode becomes meaningful for it too. The driver abstraction handles this — just add `--mcp-config` to the codex driver's `mcp` mode.

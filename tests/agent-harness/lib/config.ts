@@ -2,8 +2,13 @@ import { z } from "zod";
 
 // --- Run Mode ---
 
-/** Whether the agent has access to agent-lens MCP debugging tools. */
-export type RunMode = "tools" | "baseline";
+/**
+ * How agent-lens is exposed to the agent under test.
+ * - "mcp"      — agent-lens MCP server configured; agent uses debug_* MCP tools
+ * - "cli"      — no MCP server, but agent-lens CLI + skill file available; agent uses bash
+ * - "baseline" — no agent-lens at all; agent relies on code reading and test output
+ */
+export type RunMode = "mcp" | "cli" | "baseline";
 
 // --- Scenario Config (scenario.json) ---
 
