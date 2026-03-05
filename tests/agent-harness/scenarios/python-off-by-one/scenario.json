@@ -1,0 +1,18 @@
+{
+	"scenario": {
+		"name": "python-off-by-one",
+		"language": "python",
+		"description": "A loop uses range(len(items) - 1) which skips the last item in the list",
+		"timeout_seconds": 120,
+		"max_budget_usd": 0.5
+	},
+	"setup": {
+		"commands": []
+	},
+	"visible_test": {
+		"command": "python3 -m pytest test_items.py -x -q 2>&1"
+	},
+	"validation": {
+		"command": "python3 -m pytest test_validation.py -x -q 2>&1"
+	}
+}

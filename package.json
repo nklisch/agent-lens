@@ -27,6 +27,8 @@
 		"test:integration": "vitest run tests/integration",
 		"test:e2e": "vitest run tests/e2e",
 		"test:watch": "vitest watch tests/unit",
+		"test:agent": "vitest run --config tests/agent-harness/vitest.config.ts",
+		"test:agent:report": "bun run tests/agent-harness/report.ts",
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
