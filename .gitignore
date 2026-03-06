@@ -17,6 +17,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+META-INF/
 
 # Claude Code local settings
 .claude/settings.local.json
