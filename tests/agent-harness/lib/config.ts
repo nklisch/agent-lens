@@ -15,11 +15,21 @@ export type RunMode = "mcp" | "cli" | "baseline";
 export const ScenarioConfigSchema = z.object({
 	scenario: z.object({
 		name: z.string(),
-		language: z.string(),
+		language: z.union([z.string(), z.array(z.string())]),
 		description: z.string(),
 		timeout_seconds: z.number(),
-		max_budget_usd: z.number(),
+		level: z.number().int().min(1).max(7),
 	}),
+	services: z
+		.array(
+			z.object({
+				name: z.string(),
+				language: z.string(),
+				dir: z.string(),
+				port: z.number().optional(),
+			}),
+		)
+		.optional(),
 	setup: z
 		.object({
 			commands: z.array(z.string()).default([]),
@@ -42,12 +52,14 @@ export interface Scenario {
 	name: string;
 	/** Human description */
 	description: string;
-	/** Primary language ("python", "node", "go", etc.) */
-	language: string;
+	/** Primary language or languages ("python", "node", "go", or ["python", "node", "go"]) */
+	language: string | string[];
+	/** Difficulty level 1–7 */
+	level: number;
+	/** Service descriptions for multi-language scenarios (informational) */
+	services?: Array<{ name: string; language: string; dir: string; port?: number }>;
 	/** Timeout in seconds for the agent run */
 	timeoutSeconds: number;
-	/** Max spend in USD */
-	maxBudgetUsd: number;
 	/** Setup commands to run before the agent starts */
 	setupCommands: string[];
 	/** Command to run to check the visible test (pre/post agent) */
@@ -80,7 +92,6 @@ export interface AgentRunOptions {
 	mcpConfigPath: string;
 	prompt: string;
 	timeoutMs: number;
-	maxBudgetUsd?: number;
 	env?: Record<string, string>;
 	/** Agent-lens skill file content to inject into the agent's context */
 	skillContent?: string;
@@ -158,7 +169,8 @@ export interface RunResult {
 	/** Scenario metadata for self-contained reports */
 	scenarioMeta: {
 		description: string;
-		language: string;
+		language: string | string[];
+		level: number;
 	};
 	/** Agent name */
 	agent: string;
