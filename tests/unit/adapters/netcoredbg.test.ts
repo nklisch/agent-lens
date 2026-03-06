@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { NETCOREDBG_VERSION, getNetcoredbgBinaryPath, getNetcoredbgCachePath, getNetcoredbgDownloadUrl } from "../../../src/adapters/netcoredbg.js";
+import { getNetcoredbgBinaryPath, getNetcoredbgCachePath, getNetcoredbgDownloadUrl, NETCOREDBG_VERSION } from "../../../src/adapters/netcoredbg.js";
 
 describe("getNetcoredbgCachePath", () => {
 	it("returns path under ~/.agent-lens/adapters/netcoredbg", () => {

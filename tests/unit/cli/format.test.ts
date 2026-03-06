@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { DoctorResult } from "../../../src/cli/commands/doctor.js";
+import { formatDoctor } from "../../../src/cli/commands/doctor.js";
 import {
 	formatBreakpointsList,
 	formatBreakpointsSet,
@@ -12,8 +14,6 @@ import {
 	formatViewport,
 	resolveOutputMode,
 } from "../../../src/cli/format.js";
-import { formatDoctor } from "../../../src/cli/commands/doctor.js";
-import type { DoctorResult } from "../../../src/cli/commands/doctor.js";
 import type { BreakpointsListPayload, BreakpointsResultPayload, LaunchResultPayload, StatusResultPayload, StopResultPayload } from "../../../src/daemon/protocol.js";
 
 describe("resolveOutputMode", () => {

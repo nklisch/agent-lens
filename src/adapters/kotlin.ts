@@ -1,19 +1,98 @@
 import type { ChildProcess } from "node:child_process";
 import { exec, spawn } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
-import type { Socket } from "node:net";
-import { tmpdir } from "node:os";
-import { basename, extname, resolve as resolvePath } from "node:path";
+import { copyFileSync, createWriteStream, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { get as httpsGet } from "node:https";
+import { homedir, tmpdir } from "node:os";
+import { basename, dirname, extname, join, resolve as resolvePath } from "node:path";
+import { pipeline } from "node:stream/promises";
 import { promisify } from "node:util";
 import { LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
-import { downloadAndCacheJavaDebugAdapter, getJavaDebugAdapterCachePath } from "./java.js";
+import { gracefulDispose } from "./helpers.js";
 
 const execAsync = promisify(exec);
 
-function isJavaDebugAdapterCached(): boolean {
-	return existsSync(getJavaDebugAdapterCachePath());
+/**
+ * kotlin-debug-adapter (fwcd) version pinned here.
+ * Communicates via stdin/stdout DAP. Main class: org.javacs.ktda.KDAMainKt
+ */
+const KDA_VERSION = "0.4.4";
+const KDA_URL = `https://github.com/fwcd/kotlin-debug-adapter/releases/download/${KDA_VERSION}/adapter.zip`;
+const KDA_MAIN_CLASS = "org.javacs.ktda.KDAMainKt";
+
+function getKdaCacheDir(): string {
+	return join(homedir(), ".agent-lens", "adapters", "kotlin-debug");
+}
+
+function getKdaMarkerJar(): string {
+	return join(getKdaCacheDir(), "lib", `adapter-${KDA_VERSION}.jar`);
+}
+
+function isKdaCached(): boolean {
+	return existsSync(getKdaMarkerJar());
+}
+
+/**
+ * Build the full classpath for the KDA from all JARs in its lib directory.
+ */
+function buildKdaClasspath(): string {
+	const libDir = join(getKdaCacheDir(), "lib");
+	return readdirSync(libDir)
+		.filter((f) => f.endsWith(".jar"))
+		.map((f) => join(libDir, f))
+		.join(":");
+}
+
+/**
+ * Download a URL to a local file, following redirects.
+ */
+function downloadToFile(url: string, destPath: string): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const file = createWriteStream(destPath);
+		const req = httpsGet(url, (response) => {
+			if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+				file.destroy();
+				downloadToFile(response.headers.location, destPath).then(resolve).catch(reject);
+				return;
+			}
+			if (response.statusCode !== 200) {
+				file.destroy();
+				reject(new Error(`HTTP ${response.statusCode} downloading kotlin-debug-adapter from ${url}`));
+				return;
+			}
+			pipeline(response, file).then(resolve).catch(reject);
+		});
+		req.on("error", reject);
+	});
+}
+
+/**
+ * Download and extract the kotlin-debug-adapter zip, caching all lib JARs.
+ */
+async function downloadAndCacheKda(): Promise<void> {
+	const cacheDir = getKdaCacheDir();
+	const libDir = join(cacheDir, "lib");
+	mkdirSync(libDir, { recursive: true });
+
+	const zipPath = join(tmpdir(), `kotlin-debug-adapter-${KDA_VERSION}.zip`);
+
+	try {
+		await downloadToFile(KDA_URL, zipPath);
+	} catch (err) {
+		throw new Error(
+			`Failed to download kotlin-debug-adapter v${KDA_VERSION}.\nURL: ${KDA_URL}\nError: ${err instanceof Error ? err.message : String(err)}\n` +
+				`To install manually, download ${KDA_URL} and extract adapter/lib/*.jar to: ${libDir}`,
+		);
+	}
+
+	// Extract adapter/lib/*.jar into the cache lib directory
+	try {
+		await execAsync(`unzip -o "${zipPath}" "adapter/lib/*" -d "${cacheDir}/extract"`, { timeout: 30_000 });
+		await execAsync(`mv "${cacheDir}/extract/adapter/lib/"*.jar "${libDir}/"`, { timeout: 10_000 });
+		await execAsync(`rm -rf "${cacheDir}/extract"`, { timeout: 5_000 });
+	} catch (err) {
+		throw new Error(`Failed to extract kotlin-debug-adapter: ${err instanceof Error ? err.message : String(err)}`);
+	}
 }
 
 /**
@@ -36,13 +115,13 @@ function parseJavacVersion(output: string): number {
 export class KotlinAdapter implements DebugAdapter {
 	id = "kotlin";
 	fileExtensions = [".kt"];
-	displayName = "Kotlin (java-debug-adapter)";
+	displayName = "Kotlin (kotlin-debug-adapter)";
 
 	private adapterProcess: ChildProcess | null = null;
-	private socket: Socket | null = null;
+	private projectDir: string | null = null;
 
 	/**
-	 * Check for kotlinc and JDK 17+ availability.
+	 * Check for kotlinc and JDK 17+ availability, and the cached KDA.
 	 */
 	async checkPrerequisites(): Promise<PrerequisiteResult> {
 		// Check kotlinc (outputs to stderr)
@@ -111,12 +190,12 @@ export class KotlinAdapter implements DebugAdapter {
 			};
 		}
 
-		// Check java-debug-adapter JAR
-		if (!isJavaDebugAdapterCached()) {
+		// Check kotlin-debug-adapter (downloaded automatically on first use)
+		if (!isKdaCached()) {
 			return {
 				satisfied: false,
-				missing: ["java-debug-adapter"],
-				installHint: "The java-debug-adapter JAR will be downloaded automatically on first use.",
+				missing: ["kotlin-debug-adapter"],
+				installHint: "The kotlin-debug-adapter will be downloaded automatically on first use.",
 			};
 		}
 
@@ -124,77 +203,103 @@ export class KotlinAdapter implements DebugAdapter {
 	}
 
 	/**
-	 * Launch a Kotlin program via the java-debug-adapter.
-	 * Compiles .kt source files with kotlinc -include-runtime.
+	 * Launch a Kotlin program via the kotlin-debug-adapter (stdio DAP transport).
+	 * Compiles .kt source files with kotlinc -include-runtime, then launches KDA.
 	 */
 	async launch(config: LaunchConfig): Promise<DAPConnection> {
 		const cwd = config.cwd ?? process.cwd();
 		const parsed = parseKotlinCommand(config.command);
-		let compiledJarPath: string;
+
+		// KDA uses projectRoot to discover compiled classes via a Gradle-like structure:
+		// projectRoot/build/classes/kotlin/main/<classfiles>
+		// It ignores `classPaths` from the launch request entirely.
+		const projectDir = join(tmpdir(), `agent-lens-kda-${Date.now()}`);
+		const classOutputDir = join(projectDir, "build", "classes", "kotlin", "main");
+		mkdirSync(classOutputDir, { recursive: true });
+		this.projectDir = projectDir;
+
+		let mainClass: string;
 
 		if (parsed.type === "source") {
-			// Compile .kt file to a self-contained JAR
 			const src = resolvePath(cwd, parsed.path);
-			const outDir = tmpdir();
-			const jarName = `agent-lens-kotlin-${Date.now()}.jar`;
-			compiledJarPath = `${outDir}/${jarName}`;
+			mainClass = deriveMainClass(basename(parsed.path));
+
+			// Copy source into the Gradle src/main/kotlin layout so KDA's project-root
+			// source scanner can resolve source references in stack frames.
+			const srcDir = join(projectDir, "src", "main", "kotlin");
+			mkdirSync(srcDir, { recursive: true });
+			copyFileSync(src, join(srcDir, basename(src)));
 
 			try {
-				await execAsync(`kotlinc "${src}" -include-runtime -d "${compiledJarPath}"`, {
+				// Compile to class directory (no -include-runtime) — KDA resolves kotlin-stdlib itself.
+				await execAsync(`kotlinc "${src}" -d "${classOutputDir}"`, {
 					cwd,
 					env: { ...process.env, ...config.env },
-					timeout: 60_000, // Kotlin compiler can be slow
+					timeout: 60_000,
 				});
 			} catch (err) {
 				throw new LaunchError(`kotlinc compilation failed: ${err instanceof Error ? err.message : String(err)}`);
 			}
 		} else if (parsed.type === "jar") {
-			compiledJarPath = resolvePath(cwd, parsed.path);
+			// For pre-compiled JARs, put them where ProjectClassesResolver looks.
+			// Copy class files from JAR into the expected directory structure.
+			const jarPath = resolvePath(cwd, parsed.path);
+			try {
+				await execAsync(`jar xf "${jarPath}"`, { cwd: classOutputDir, timeout: 10_000 });
+			} catch (err) {
+				throw new LaunchError(`Failed to extract JAR: ${err instanceof Error ? err.message : String(err)}`);
+			}
+			mainClass = basename(parsed.path, ".jar");
 		} else {
-			// class mode — run main class directly
-			compiledJarPath = resolvePath(cwd, parsed.path);
+			mainClass = parsed.path;
 		}
 
-		// Ensure java-debug-adapter JAR is cached
-		let jarPath = getJavaDebugAdapterCachePath();
-		if (!isJavaDebugAdapterCached()) {
-			jarPath = await downloadAndCacheJavaDebugAdapter();
+		// Ensure kotlin-debug-adapter is cached
+		if (!isKdaCached()) {
+			await downloadAndCacheKda();
 		}
 
-		const port = config.port ?? (await allocatePort());
+		const classpath = buildKdaClasspath();
 
-		const { process: adapterProc } = await spawnAndWait({
-			cmd: "java",
-			args: ["-jar", jarPath, "--port", String(port)],
+		// Spawn KDA — communicates via stdin/stdout DAP
+		const child = spawn("java", ["-classpath", classpath, KDA_MAIN_CLASS], {
 			cwd,
 			env: { ...process.env, ...config.env },
-			readyPattern: /listening|started|ready/i,
-			timeoutMs: 20_000,
-			label: "java-debug-adapter",
+			stdio: ["pipe", "pipe", "pipe"],
 		});
 
-		this.adapterProcess = adapterProc;
+		this.adapterProcess = child;
 
-		const socket = await connectTCP("127.0.0.1", port, 30, 300).catch((err) => {
-			adapterProc.kill();
-			throw new LaunchError(`Could not connect to java-debug-adapter on port ${port}: ${err.message}`);
+		// Check for early spawn failure
+		const earlyError = await new Promise<Error | null>((resolve) => {
+			const stderrChunks: string[] = [];
+			child.stderr?.on("data", (d: Buffer) => stderrChunks.push(d.toString()));
+			child.on("error", (err) => resolve(new LaunchError(`Failed to spawn kotlin-debug-adapter: ${err.message}`)));
+			child.on("close", (code) => {
+				if (code !== null && code !== 0) {
+					resolve(new LaunchError(`kotlin-debug-adapter exited with code ${code}. output: ${stderrChunks.join("")}`));
+				} else {
+					resolve(null);
+				}
+			});
+			setTimeout(() => resolve(null), 1_000);
 		});
 
-		this.socket = socket;
-
-		const launchArgs: Record<string, unknown> = {
-			mainClass: "",
-			classPaths: [compiledJarPath],
-			jarPath: compiledJarPath,
-			cwd,
-			env: config.env ?? {},
-		};
+		if (earlyError) throw earlyError;
 
 		return {
-			reader: socket,
-			writer: socket,
-			process: adapterProc,
-			launchArgs,
+			reader: child.stdout!,
+			writer: child.stdin!,
+			process: child,
+			launchArgs: {
+				// KDA needs launch before setBreakpoints to trigger JVM resolution.
+				// KDA never responds to configurationDone, so fire it without awaiting.
+				_dapFlow: "launch-first",
+				_fireConfigDone: true,
+				mainClass,
+				projectRoot: projectDir,
+				enableJsonLogging: false,
+			},
 		};
 	}
 
@@ -205,34 +310,23 @@ export class KotlinAdapter implements DebugAdapter {
 		const host = config.host ?? "127.0.0.1";
 		const jdwpPort = config.port ?? 5005;
 
-		let jarPath = getJavaDebugAdapterCachePath();
-		if (!isJavaDebugAdapterCached()) {
-			jarPath = await downloadAndCacheJavaDebugAdapter();
+		if (!isKdaCached()) {
+			await downloadAndCacheKda();
 		}
 
-		const dapPort = await allocatePort();
+		const classpath = buildKdaClasspath();
 
-		const { process: adapterProc } = await spawnAndWait({
-			cmd: "java",
-			args: ["-jar", jarPath, "--port", String(dapPort)],
-			readyPattern: /listening|started|ready/i,
-			timeoutMs: 20_000,
-			label: "java-debug-adapter",
+		const child = spawn("java", ["-classpath", classpath, KDA_MAIN_CLASS], {
+			stdio: ["pipe", "pipe", "pipe"],
+			env: { ...process.env },
 		});
 
-		this.adapterProcess = adapterProc;
-
-		const socket = await connectTCP("127.0.0.1", dapPort, 30, 300).catch((err) => {
-			adapterProc.kill();
-			throw new LaunchError(`Could not connect to java-debug-adapter on port ${dapPort}: ${err.message}`);
-		});
-
-		this.socket = socket;
+		this.adapterProcess = child;
 
 		return {
-			reader: socket,
-			writer: socket,
-			process: adapterProc,
+			reader: child.stdout!,
+			writer: child.stdin!,
+			process: child,
 			launchArgs: {
 				request: "attach",
 				hostName: host,
@@ -242,9 +336,14 @@ export class KotlinAdapter implements DebugAdapter {
 	}
 
 	async dispose(): Promise<void> {
-		await gracefulDispose(this.socket, this.adapterProcess);
-		this.socket = null;
+		await gracefulDispose(null, this.adapterProcess);
 		this.adapterProcess = null;
+		if (this.projectDir) {
+			try {
+				rmSync(this.projectDir, { recursive: true, force: true });
+			} catch {}
+			this.projectDir = null;
+		}
 	}
 }
 

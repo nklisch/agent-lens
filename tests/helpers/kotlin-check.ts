@@ -1,7 +1,12 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+const KDA_MARKER = join(homedir(), ".agent-lens", "adapters", "kotlin-debug", "lib", "adapter-0.4.4.jar");
 
 /**
- * Check if kotlinc and JDK 17+ are both available.
+ * Check if kotlinc, JDK 17+, and the kotlin-debug-adapter are all available.
  */
 export async function isKotlinDebugAvailable(): Promise<boolean> {
 	const kotlinOk = await new Promise<boolean>((resolve) => {
@@ -32,7 +37,8 @@ export async function isKotlinDebugAvailable(): Promise<boolean> {
 		});
 		proc.on("error", () => resolve(false));
 	});
-	return jdkOk;
+	if (!jdkOk) return false;
+	return existsSync(KDA_MARKER);
 }
 
 /**

@@ -86,6 +86,6 @@ describe("KotlinAdapter properties", () => {
 		const adapter = new KotlinAdapter();
 		expect(adapter.id).toBe("kotlin");
 		expect(adapter.fileExtensions).toEqual([".kt"]);
-		expect(adapter.displayName).toBe("Kotlin (java-debug-adapter)");
+		expect(adapter.displayName).toBe("Kotlin (kotlin-debug-adapter)");
 	});
 });

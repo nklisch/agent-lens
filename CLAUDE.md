@@ -9,15 +9,17 @@ src/
   cli/          CLI entry point + commands (citty)
   mcp/          MCP server entry + tool handlers (@modelcontextprotocol/sdk)
   core/         Session manager, viewport renderer, DAP client, value renderer
-  adapters/     Language-specific debugger adapters (Python first, then Node, Go)
+  adapters/     Language-specific debugger adapters
   index.ts      Library exports
 tests/
-  unit/         Pure logic tests (mocks OK)
-  integration/  Real debugger tests (no mocks)
-  e2e/          Full MCP/CLI-to-viewport tests (no mocks)
-  fixtures/     Real programs used as debug targets
-docs/           Design docs (VISION, ARCH, UX, SPEC, INTERFACE, TESTING)
-  designs/      Phase design docs — named phase-N-short-description.md
+  unit/           Pure logic tests (mocks OK)
+  integration/    Real debugger tests (no mocks)
+  e2e/            Full MCP/CLI-to-viewport tests (no mocks)
+  fixtures/       Real programs used as debug targets
+  agent-harness/  Scenario-based test suite for evaluating agent debugging ability
+    scenarios/    Buggy programs at 5 difficulty levels, per-language suites
+docs/             Design docs (VISION, ARCH, UX, SPEC, INTERFACE, TESTING)
+  designs/        Phase design docs — named phase-N-short-description.md
 ```
 
 ## Commands

@@ -1,6 +1,6 @@
 ---
 name: agent-lens
-description: Runtime debugger for AI agents. Set breakpoints, inspect variables, evaluate expressions, and step through code via MCP tools or CLI commands. Supports Python, JavaScript/TypeScript, Go, Rust, C/C++, and Java. Use when test output and static code reading aren't enough to find a bug's root cause.
+description: Use when a test fails and reading the code isn't enough to find why. agent-lens gives you a live debugger: set breakpoints, inspect variables, evaluate expressions, and step through execution in Python, JavaScript/TypeScript, Go, Rust, C/C++, and Java. Reach for it when you've read the code and still can't tell what value a variable has at runtime, when the bug is in logic you can't trace statically (closures, async, pipelines, type coercions), or when you need to verify a hypothesis before editing.
 license: MIT
 compatibility: Requires debugger binaries for the target language (e.g., debugpy for Python, dlv for Go). Works with any MCP-compatible agent or via CLI.
 metadata:

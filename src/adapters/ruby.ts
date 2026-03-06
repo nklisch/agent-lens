@@ -66,9 +66,10 @@ export class RubyAdapter implements DebugAdapter {
 			throw new LaunchError(`Script not found: ${absScript}`, "");
 		});
 
-		// rdbg --open=dap listens for a DAP client on a TCP socket.
-		// The `-- ruby` part tells rdbg to launch Ruby with the given script.
-		const child = spawn("rdbg", ["--open=dap", `--port=${port}`, "--host=127.0.0.1", "--", "ruby", absScript, ...args], {
+		// rdbg --open listens on TCP; the greeting handler auto-detects DAP
+		// when the client sends Content-Length framing (standard DAP transport).
+		// Do NOT pass a frontend name (=dap/=vscode) — those are for IDE launchers.
+		const child = spawn("rdbg", ["--open", `--port=${port}`, "--host=127.0.0.1", absScript, ...args], {
 			cwd,
 			env: { ...process.env, ...config.env },
 			stdio: ["pipe", "pipe", "pipe"],
@@ -112,6 +113,10 @@ export class RubyAdapter implements DebugAdapter {
 			writer: socket,
 			process: child,
 			launchArgs: {
+				// rdbg --open requires launch before setBreakpoints to initialize
+				// local_fs_map (local_to_remote_path returns nil otherwise → "not available").
+				// launch-first sends launch, then awaits initialized, then setBreakpoints.
+				_dapFlow: "launch-first",
 				type: "rdbg",
 				cwd,
 				env: config.env ?? {},

@@ -235,7 +235,8 @@ export class SessionManager {
 		// Strip internal protocol flags (prefixed with _) before sending to the adapter.
 		// Framework launchArgs go last so they take precedence over adapter defaults.
 		const dapFlow = (connection.launchArgs?._dapFlow as string | undefined) ?? "standard";
-		const { _dapFlow: _ignored, ...adapterLaunchArgs } = connection.launchArgs ?? {};
+		const fireConfigDone = !!connection.launchArgs?._fireConfigDone;
+		const { _dapFlow: _ignored, _fireConfigDone: _ignored2, ...adapterLaunchArgs } = connection.launchArgs ?? {};
 		const dapLaunchArgs: Record<string, unknown> = {
 			noDebug: false,
 			program: effectiveCommand,
@@ -290,7 +291,13 @@ export class SessionManager {
 				}
 			}
 
-			await dapClient.configurationDone();
+			// Some adapters (e.g. kotlin-debug-adapter) never send a configurationDone response
+			// but DO need the request to be sent to trigger JVM startup. Fire without awaiting.
+			if (fireConfigDone) {
+				dapClient.configurationDone().catch(() => {});
+			} else {
+				await dapClient.configurationDone();
+			}
 			await launchPromise;
 		} else {
 			// Standard DAP protocol: initialized arrives quickly after initialize response.
