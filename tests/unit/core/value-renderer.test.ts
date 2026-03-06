@@ -241,3 +241,44 @@ describe("isInternalVariable — JS and Go names", () => {
 		expect(isInternalVariable("result")).toBe(false);
 	});
 });
+
+describe("isInternalVariable — Ruby, C#, Swift names", () => {
+	it("matches Ruby __method__", () => {
+		expect(isInternalVariable("__method__")).toBe(true);
+	});
+
+	it("matches Ruby __dir__", () => {
+		expect(isInternalVariable("__dir__")).toBe(true);
+	});
+
+	it("matches Ruby __FILE__", () => {
+		expect(isInternalVariable("__FILE__")).toBe(true);
+	});
+
+	it("matches C# $exception", () => {
+		expect(isInternalVariable("$exception")).toBe(true);
+	});
+
+	it("matches C# $returnvalue", () => {
+		expect(isInternalVariable("$returnvalue")).toBe(true);
+	});
+
+	it("matches C# $stowedexception", () => {
+		expect(isInternalVariable("$stowedexception")).toBe(true);
+	});
+
+	it("matches Swift $__lldb_injected_self", () => {
+		expect(isInternalVariable("$__lldb_injected_self")).toBe(true);
+	});
+
+	it("does not match regular Ruby variable names", () => {
+		expect(isInternalVariable("total")).toBe(false);
+		expect(isInternalVariable("result")).toBe(false);
+		expect(isInternalVariable("name")).toBe(false);
+	});
+
+	it("does not match regular C# variable names", () => {
+		expect(isInternalVariable("myVar")).toBe(false);
+		expect(isInternalVariable("count")).toBe(false);
+	});
+});

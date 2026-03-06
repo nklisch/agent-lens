@@ -97,7 +97,7 @@ if command -v javac &>/dev/null; then
         ok "javac $JAVAC_VERSION"
 
         JAVA_DEBUG_JAR="$HOME/.agent-lens/adapters/java-debug"
-        if ls "$JAVA_DEBUG_JAR"/com.microsoft.java.debug.plugin-*.jar &>/dev/null 2>&1; then
+        if ls "$JAVA_DEBUG_JAR"/java-debug-adapter-*.jar &>/dev/null 2>&1; then
             ok "java-debug-adapter JAR cached"
         else
             warn "java-debug-adapter JAR not cached — downloading..."
@@ -155,6 +155,124 @@ else
         warn "  sudo pacman -S gdb"
     elif command -v zypper &>/dev/null; then
         warn "  sudo zypper install gdb"
+    fi
+fi
+
+echo ""
+
+# --- Ruby + rdbg ---
+echo "Ruby:"
+if command -v ruby &>/dev/null; then
+    ok "ruby $(ruby --version | awk '{print $2}')"
+    if command -v rdbg &>/dev/null; then
+        ok "rdbg (debug gem) installed"
+    else
+        warn "rdbg not found — installing debug gem..."
+        gem install debug
+        ok "rdbg installed"
+    fi
+else
+    warn "ruby not found (needed for ruby adapter tests)"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        warn "  brew install ruby  (or use rbenv/asdf)"
+    elif command -v dnf &>/dev/null; then
+        warn "  sudo dnf install ruby"
+    elif command -v apt-get &>/dev/null; then
+        warn "  sudo apt-get install ruby"
+    elif command -v pacman &>/dev/null; then
+        warn "  sudo pacman -S ruby"
+    else
+        warn "  See: https://www.ruby-lang.org/en/downloads/"
+    fi
+    warn "  Then: gem install debug"
+fi
+
+echo ""
+
+# --- C# + netcoredbg ---
+echo "C# (.NET):"
+if command -v dotnet &>/dev/null; then
+    ok "dotnet $(dotnet --version)"
+
+    NETCOREDBG_CACHE="$HOME/.agent-lens/adapters/netcoredbg/netcoredbg"
+    if [ -f "$NETCOREDBG_CACHE" ]; then
+        ok "netcoredbg cached"
+    elif command -v netcoredbg &>/dev/null; then
+        ok "netcoredbg on PATH"
+    else
+        warn "netcoredbg not found — downloading..."
+        bun -e "import { downloadAndCacheNetcoredbg } from './src/adapters/netcoredbg.js'; await downloadAndCacheNetcoredbg();"
+        ok "netcoredbg cached"
+    fi
+else
+    warn "dotnet not found (needed for csharp adapter tests)"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        warn "  brew install dotnet"
+    elif command -v dnf &>/dev/null; then
+        warn "  sudo dnf install dotnet-sdk-8.0"
+    elif command -v apt-get &>/dev/null; then
+        warn "  sudo apt-get install dotnet-sdk-8.0"
+    else
+        warn "  See: https://dotnet.microsoft.com/download"
+    fi
+fi
+
+echo ""
+
+# --- Swift + lldb-dap ---
+echo "Swift:"
+if command -v swiftc &>/dev/null; then
+    ok "swiftc $(swiftc --version 2>&1 | head -1 | grep -oE 'Swift version [0-9.]+' | awk '{print $3}')"
+
+    # lldb-dap may be on PATH or accessible via xcrun on macOS
+    if command -v lldb-dap &>/dev/null; then
+        ok "lldb-dap on PATH"
+    elif [[ "$OSTYPE" == "darwin"* ]] && xcrun -f lldb-dap &>/dev/null 2>&1; then
+        ok "lldb-dap via xcrun (Xcode toolchain)"
+    else
+        warn "lldb-dap not found"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            warn "  Install Xcode or Command Line Tools: xcode-select --install"
+        else
+            warn "  Install Swift toolchain from https://swift.org/download"
+            warn "  (lldb-dap must be from the Swift toolchain, not system LLVM)"
+        fi
+    fi
+else
+    warn "swiftc not found (needed for swift adapter tests)"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        warn "  xcode-select --install"
+    else
+        warn "  Install Swift toolchain from https://swift.org/download"
+    fi
+fi
+
+echo ""
+
+# --- Kotlin (reuses java-debug-adapter JAR from Java section above) ---
+echo "Kotlin:"
+if command -v kotlinc &>/dev/null; then
+    # kotlinc -version outputs to stderr
+    KOTLIN_VERSION=$(kotlinc -version 2>&1 | grep -oE 'kotlinc-jvm [0-9.]+' | awk '{print $2}')
+    ok "kotlinc ${KOTLIN_VERSION:-installed}"
+
+    # Kotlin reuses the java-debug-adapter JAR — check it was cached in the Java section above
+    JAVA_DEBUG_JAR_DIR="$HOME/.agent-lens/adapters/java-debug"
+    if ls "$JAVA_DEBUG_JAR_DIR"/java-debug-adapter-*.jar &>/dev/null 2>&1 || ls "$JAVA_DEBUG_JAR_DIR"/com.microsoft.java.debug.plugin-*.jar &>/dev/null 2>&1; then
+        ok "java-debug-adapter JAR available (shared with Java adapter)"
+    else
+        warn "java-debug-adapter JAR not cached — run 'bun -e \"import { downloadAndCacheJavaDebugAdapter } from \\\"./src/adapters/java.js\\\"; await downloadAndCacheJavaDebugAdapter();\"'"
+    fi
+else
+    warn "kotlinc not found (needed for kotlin adapter tests)"
+    if command -v sdk &>/dev/null; then
+        warn "  sdk install kotlin   (SDKMAN)"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        warn "  brew install kotlin"
+    elif command -v snap &>/dev/null; then
+        warn "  sudo snap install kotlin --classic"
+    else
+        warn "  See: https://kotlinlang.org/docs/command-line.html"
     fi
 fi
 
