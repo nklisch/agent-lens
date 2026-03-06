@@ -17,8 +17,8 @@
  *   bun run test:agent                                                  # all agents × all scenarios × all modes
  *   AGENT=claude-code bun run test:agent                                # one agent
  *   SCENARIO=python-discount-bug bun run test:agent                     # one scenario
- *   MODE=mcp bun run test:agent                                          # one mode only
- *   AGENT=claude-code SCENARIO=python-discount-bug MODE=mcp bun run test:agent
+ *   RUN_MODE=mcp bun run test:agent                                       # one mode only
+ *   AGENT=claude-code SCENARIO=python-discount-bug RUN_MODE=mcp bun run test:agent
  *   TRACE_DIR=./results bun run test:agent                              # custom output dir
  *
  * Results are saved as structured traces (default: tests/agent-harness/.traces/).
@@ -41,11 +41,11 @@ const agents: AgentDriver[] = await discoverAgents();
 // Mode selection — baseline runs first, then cli, then mcp.
 // Configurable via MODE env var (comma-separated); defaults to all three modes.
 const ALL_MODES = ["baseline", "cli", "mcp"] as const satisfies RunMode[];
-const modeFilter = process.env.MODE;
+const modeFilter = process.env.RUN_MODE;
 const modes: RunMode[] = modeFilter ? (ALL_MODES.filter((m) => modeFilter.split(",").includes(m)) as RunMode[]) : [...ALL_MODES];
 
 if (modes.length === 0) {
-	throw new Error(`MODE="${modeFilter}" has no valid modes. Use "mcp", "cli", "baseline" (comma-separated).`);
+	throw new Error(`RUN_MODE="${modeFilter}" has no valid modes. Use "mcp", "cli", "baseline" (comma-separated).`);
 }
 
 let suiteDir: string;
@@ -66,7 +66,7 @@ afterAll(() => {
 });
 
 describe.each(agents)("Agent: $name", (agent) => {
-	describe.each(scenarios)("Scenario: $name", (scenario) => {
+	describe.each(scenarios)("Scenario: $name (L$level)", (scenario) => {
 		describe.each(modes)("Mode: %s", (mode) => {
 			it(
 				"fixes the bug (hidden test passes)",

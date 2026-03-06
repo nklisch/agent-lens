@@ -79,9 +79,7 @@ function parseClaudeStream(stdout: string): {
 							if (typeof block.content === "string") {
 								output = block.content;
 							} else if (Array.isArray(block.content)) {
-								const texts = (block.content as Array<{ type: string; text?: string }>)
-									.filter((c) => c.type === "text" && c.text)
-									.map((c) => c.text!);
+								const texts = (block.content as Array<{ type: string; text?: string }>).filter((c) => c.type === "text" && c.text).map((c) => c.text!);
 								if (texts.length > 0) output = texts.join("\n");
 							}
 
@@ -157,10 +155,6 @@ const claudeCode: AgentDriver = {
 
 		if (options.skillContent) {
 			args.push("--append-system-prompt", options.skillContent);
-		}
-
-		if (options.maxBudgetUsd !== undefined) {
-			args.push("--max-budget-usd", String(options.maxBudgetUsd));
 		}
 
 		const sessionLog: string[] = [];

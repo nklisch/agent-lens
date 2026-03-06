@@ -193,7 +193,6 @@ export async function runScenario(agent: AgentDriver, scenario: Scenario, traceD
 			mcpConfigPath: workspace.mcpConfigPath,
 			prompt,
 			timeoutMs: scenario.timeoutSeconds * 1000,
-			maxBudgetUsd: scenario.maxBudgetUsd,
 			skillContent,
 			mode,
 			env,
@@ -220,6 +219,7 @@ export async function runScenario(agent: AgentDriver, scenario: Scenario, traceD
 		scenarioMeta: {
 			description: scenario.description,
 			language: scenario.language,
+			level: scenario.level,
 		},
 		agent: agent.name,
 		timestamp,
