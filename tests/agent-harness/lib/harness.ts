@@ -1,4 +1,4 @@
-import { appendFile, chmod, cp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, chmod, cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { AgentDriver, AgentRunResult, RunMode, RunResult, Scenario, ValidationResult, Workspace } from "./config.js";
@@ -139,7 +139,11 @@ export async function prepareWorkspace(scenario: Scenario, mode: RunMode = "mcp"
 
 async function validate(workspace: Workspace, scenario: Scenario): Promise<ValidationResult> {
 	await cp(scenario.hiddenDir, workspace.workDir, { recursive: true });
-	return runCommand(scenario.validationCommand, workspace.workDir);
+	const result = await runCommand(scenario.validationCommand, workspace.workDir);
+	// Remove hidden files so the agent can't read them on retries
+	const entries = await readdir(scenario.hiddenDir);
+	await Promise.all(entries.map((entry) => rm(join(workspace.workDir, entry), { recursive: true, force: true })));
+	return result;
 }
 
 // --- Extract result summary from agent stdout (driver-specific) ---
@@ -214,7 +218,7 @@ export async function runScenario(agent: AgentDriver, scenario: Scenario, traceD
 			retries++;
 			console.error(`[harness] validation failed — retry ${retries}/${MAX_RETRIES} (session: ${agentRunResult.sessionId})`);
 
-			const followUp = `That didn't quite fix it — I'm still seeing the same issue. Can you take another look? It might help to write a small test that reproduces the specific case.`;
+			const followUp = `Still seeing issues, seems like the changes either didn't solve it or surfaced something new, can you dig a little deeper?`;
 
 			agentRunResult = await agent.run({
 				workDir: workspace.workDir,
