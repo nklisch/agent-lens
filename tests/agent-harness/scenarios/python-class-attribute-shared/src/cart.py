@@ -2,12 +2,12 @@
 
 
 class ShoppingCart:
-    items = []  # BUG: class attribute — shared across all instances
-    discount_code = None  # This one is fine (reassigned in __init__, so per-instance)
+    items = []  # default item list, populated via add()
+    discount_code = None
 
     def __init__(self, customer_id: str):
         self.customer_id = customer_id
-        self.discount_code = None  # creates instance attribute, shadows class attr
+        self.discount_code = None
 
     def add(self, item: str, qty: int = 1) -> None:
         """Add an item to the cart."""

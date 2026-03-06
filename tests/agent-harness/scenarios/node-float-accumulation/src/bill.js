@@ -20,10 +20,8 @@ export function splitBill(total, numPeople, tipPct = 0.18) {
 	const totalShares = shares.reduce((a, b) => a + b, 0);
 
 	if (totalShares !== billWithTip) {
-		// BUG: exact float comparison almost always triggers this block.
-		// The "correction" adds a tiny float residual to the last share,
-		// but after rounding the individual shares, the sum still doesn't
-		// match totalWithTip.
+		// Distribute any remainder to the last share before rounding,
+		// keeping the grand total exact.
 		shares[numPeople - 1] += billWithTip - totalShares;
 	}
 

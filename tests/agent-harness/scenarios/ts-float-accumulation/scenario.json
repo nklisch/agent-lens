@@ -4,7 +4,7 @@
 		"language": "typescript",
 		"description": "An exact float equality check triggers a \"correction\" that adds an epsilon before rounding; after rounding, the total shares no longer match the bill total",
 		"timeout_seconds": 300,
-		"max_budget_usd": 1.50
+		"level": 1
 	},
 	"setup": {
 		"commands": ["npm install"]

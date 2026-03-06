@@ -3,12 +3,8 @@
  * Validates email addresses and filters user records.
  */
 
-// BUG: the `g` (global) flag makes .test() stateful via .lastIndex.
-// After a successful .test(), lastIndex advances past the match.
-// The next .test() call starts from that non-zero lastIndex, fails
-// (because the new string doesn't match at that position), and resets
-// lastIndex to 0. This causes .test() to alternate true/false/true/false
-// for the same valid input.
+// Compiled regex for email validation. The global flag enables reuse
+// across multiple calls without recompiling the pattern each time.
 const EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/g;
 
 /**

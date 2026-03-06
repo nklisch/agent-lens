@@ -4,7 +4,7 @@
 		"language": "typescript",
 		"description": "A dependency injection container uses hash-computed service keys; the RateLimiter declares a dependency on CacheService with the wrong variant string, producing a key that doesn't match any registered service",
 		"timeout_seconds": 360,
-		"max_budget_usd": 2.00
+		"level": 1
 	},
 	"setup": {
 		"commands": ["npm install"]

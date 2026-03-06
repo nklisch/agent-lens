@@ -36,12 +36,7 @@ export function computeKey(name: string, variant: string): string {
  * Register a service factory under a computed key.
  * Returns the computed key so callers can reference it in dependency lists.
  */
-export function register<T>(
-	name: string,
-	variant: string,
-	factory: ServiceFactory<T>,
-	options: { singleton?: boolean; dependencies?: string[] } = {},
-): string {
+export function register<T>(name: string, variant: string, factory: ServiceFactory<T>, options: { singleton?: boolean; dependencies?: string[] } = {}): string {
 	const key = computeKey(name, variant);
 	_registry.set(key, {
 		key,

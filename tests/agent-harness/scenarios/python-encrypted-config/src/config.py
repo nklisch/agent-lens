@@ -1,10 +1,10 @@
 """Service configuration loader.
 
 Loads and merges configuration from three sources with a defined priority:
-    defaults < env_vars < config_file
+    defaults < config_file < env_vars
 
-The config_file takes highest priority (most specific), env_vars are
-intermediate, and defaults are the fallback.
+Environment variables take highest priority as the most deployment-specific
+source, followed by the config file, with defaults as the fallback.
 
 Configuration values pass through a transform registry that normalizes
 them into structured types. For example:
@@ -123,26 +123,25 @@ def _apply_transforms(data: dict, schema_version: str = "v2") -> dict:
 
 
 def load_config(defaults: dict, env_overrides: dict, file_overrides: dict, schema_version: str = "v2") -> dict:
-    """Merge configuration sources with priority: file_overrides > env_overrides > defaults.
+    """Merge configuration sources with priority: env_overrides > file_overrides > defaults.
 
     Each source is merged on top of the previous one, so later sources win.
     All values from all three sources are transformed before merging.
 
     Args:
         defaults:       Base configuration values (lowest priority).
-        env_overrides:  Values from environment variables (middle priority).
-        file_overrides: Values from config file (highest priority).
+        file_overrides: Values from config file (middle priority).
+        env_overrides:  Values from environment variables (highest priority).
         schema_version: Which transform registry version to use.
 
     Returns:
         Merged and transformed configuration dict.
     """
-    # BUG: env_overrides and file_overrides are applied in the wrong order.
-    # Current: defaults <- file_overrides <- env_overrides  (env wins, WRONG)
-    # Correct: defaults <- env_overrides  <- file_overrides (file wins, RIGHT)
+    # Apply sources with increasing specificity: defaults → file → env.
+    # Environment variables take precedence as the most deployment-specific source.
     merged = {**_apply_transforms(defaults, schema_version)}
-    merged.update(_apply_transforms(file_overrides, schema_version))   # should be env first
-    merged.update(_apply_transforms(env_overrides, schema_version))    # should be file last
+    merged.update(_apply_transforms(file_overrides, schema_version))
+    merged.update(_apply_transforms(env_overrides, schema_version))
     return merged
 
 

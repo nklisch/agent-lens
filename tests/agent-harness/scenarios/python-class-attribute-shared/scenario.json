@@ -4,7 +4,7 @@
 		"language": "python",
 		"description": "A mutable class attribute (list) is shared across all instances; each new cart inherits every previous customer's items",
 		"timeout_seconds": 300,
-		"max_budget_usd": 1.5
+		"level": 1
 	},
 	"setup": {
 		"commands": []

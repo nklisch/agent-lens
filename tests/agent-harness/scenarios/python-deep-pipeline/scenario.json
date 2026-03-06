@@ -4,7 +4,7 @@
 		"language": "python",
 		"description": "A bundle discount is never applied because the discount stage checks raw lowercase SKUs but bundle definitions use normalized uppercase SKUs from the catalog",
 		"timeout_seconds": 360,
-		"max_budget_usd": 2.0
+		"level": 1
 	},
 	"setup": {
 		"commands": []

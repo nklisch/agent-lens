@@ -43,10 +43,7 @@ def enrich_order(order: dict) -> dict:
     Each line gains:
         - unit_price    : price per unit from catalog
         - subtotal      : unit_price * qty
-        - product       : full product record (with normalized uppercase SKU)
-
-    The original line["sku"] is preserved as-is (lowercase hyphenated).
-    The catalog's normalized SKU is available at line["product"]["sku"].
+        - product       : full product record
     """
     enriched_lines = []
     for line in order["lines"]:
@@ -56,11 +53,11 @@ def enrich_order(order: dict) -> dict:
         product = PRODUCTS[raw_sku]
         enriched_lines.append(
             {
-                "sku": raw_sku,  # original input key, e.g. "widget-a"
+                "sku": raw_sku,
                 "qty": line["qty"],
                 "unit_price": product["price"],
                 "subtotal": round(product["price"] * line["qty"], 2),
-                "product": {  # full catalog record — note product["sku"] is uppercase
+                "product": {
                     **product
                 },
             }
@@ -156,11 +153,8 @@ def _get_bundle_discount(order: dict, bundle: dict) -> float:
     Returns 0.0 if the order does not contain all required SKUs.
     Otherwise returns the total discount across all qualifying line items.
     """
-    # Collect normalized SKUs present in this order
-    order_skus = {line["sku"] for line in order["lines"]}  # BUG: uses raw lowercase input SKUs
-    # bundle["required_skus"] contains uppercase normalized SKUs (e.g. "WIDGET-A")
-    # order_skus contains lowercase raw input SKUs (e.g. "widget-a")
-    # So required.issubset(order_skus) is always False — the bundle never matches
+    # Collect the SKUs present in this order
+    order_skus = {line["sku"] for line in order["lines"]}
 
     required = set(bundle["required_skus"])
     if not required.issubset(order_skus):

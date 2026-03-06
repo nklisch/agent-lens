@@ -5,7 +5,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { isValidEmail, validateUsers, filterValidUsers, validationReport } from "./parser.js";
+import { filterValidUsers, isValidEmail, validateUsers, validationReport } from "./parser.js";
 
 test("valid email returns true", () => {
 	assert.equal(isValidEmail("alice@example.com"), true);

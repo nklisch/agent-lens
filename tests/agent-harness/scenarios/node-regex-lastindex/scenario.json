@@ -4,7 +4,7 @@
 		"language": "node",
 		"description": "A RegExp with the g flag has stateful .lastIndex, causing .test() to alternate between true and false for the same valid input",
 		"timeout_seconds": 300,
-		"max_budget_usd": 1.50
+		"level": 1
 	},
 	"setup": {
 		"commands": []

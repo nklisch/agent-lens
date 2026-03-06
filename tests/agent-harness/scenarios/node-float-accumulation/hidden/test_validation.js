@@ -23,7 +23,7 @@ test("totalShares equals totalWithTip for 7 people", () => {
 });
 
 test("totalWithTip is correct", () => {
-	const result = splitBill(100, 2, 0.20);
+	const result = splitBill(100, 2, 0.2);
 	assert.equal(result.totalWithTip, 120);
 });
 
@@ -47,17 +47,13 @@ test("totalShares equals totalWithTip for various inputs", () => {
 	const cases = [
 		[50, 2, 0.18],
 		[75, 4, 0.15],
-		[33.33, 3, 0.20],
+		[33.33, 3, 0.2],
 		[47, 3, 0.18],
 		[100, 7, 0.18],
 		[53, 6, 0.18],
 	];
 	for (const [total, n, tip] of cases) {
 		const result = splitBill(total, n, tip);
-		assert.equal(
-			result.totalShares,
-			result.totalWithTip,
-			`total=${total}, n=${n}: totalShares=${result.totalShares} !== totalWithTip=${result.totalWithTip}`,
-		);
+		assert.equal(result.totalShares, result.totalWithTip, `total=${total}, n=${n}: totalShares=${result.totalShares} !== totalWithTip=${result.totalWithTip}`);
 	}
 });

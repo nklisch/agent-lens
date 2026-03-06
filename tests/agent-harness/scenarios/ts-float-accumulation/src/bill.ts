@@ -14,12 +14,8 @@ const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 /**
  * Split a restaurant bill evenly among `numPeople` diners.
- *
- * BUG: floating-point arithmetic means that `perPerson * numPeople` is
- * rarely exactly equal to `billWithTip`. The exact `!==` comparison almost
- * always triggers the "correction" branch, which adds the floating-point
- * residual to the last share BEFORE rounding. After rounding all shares,
- * the last share ends up a cent off, making `totalShares !== totalWithTip`.
+ * A correction step distributes any floating-point remainder to the last share,
+ * ensuring the sum of shares equals the total before rounding is applied.
  */
 export function splitBill(total: number, numPeople: number, tipPct = 0.18): BillSplit {
 	const tip = total * tipPct;
@@ -29,10 +25,8 @@ export function splitBill(total: number, numPeople: number, tipPct = 0.18): Bill
 	const shares: number[] = Array(numPeople).fill(perPerson);
 	const totalShares = shares.reduce((a: number, b: number) => a + b, 0);
 
-	// BUG: exact float comparison — almost always true due to IEEE 754
+	// Absorb any remainder into the last share to keep the total exact.
 	if (totalShares !== billWithTip) {
-		// "Correction" adds the float residual to the last share before rounding.
-		// After rounding, the last share absorbs the epsilon and may shift by $0.01.
 		shares[numPeople - 1] += billWithTip - totalShares;
 	}
 
@@ -53,7 +47,7 @@ export function formatBillSummary(split: BillSplit): string {
 	const lines = [
 		`Total with tip: $${split.totalWithTip.toFixed(2)}`,
 		`Per person: $${split.perPerson.toFixed(2)}`,
-		`Shares: ${split.shares.map(s => `$${s.toFixed(2)}`).join(", ")}`,
+		`Shares: ${split.shares.map((s) => `$${s.toFixed(2)}`).join(", ")}`,
 		`Sum of shares: $${split.totalShares.toFixed(2)}`,
 	];
 	return lines.join("\n");

@@ -20,11 +20,7 @@ test("totalShares matches totalWithTip", () => {
 
 test("totalShares matches totalWithTip for 6 people", () => {
 	const result = splitBill(53, 6);
-	assert.equal(
-		result.totalShares,
-		result.totalWithTip,
-		`totalShares ${result.totalShares} !== totalWithTip ${result.totalWithTip}`,
-	);
+	assert.equal(result.totalShares, result.totalWithTip, `totalShares ${result.totalShares} !== totalWithTip ${result.totalWithTip}`);
 });
 
 test("exact split works correctly", () => {

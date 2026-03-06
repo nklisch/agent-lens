@@ -1,12 +1,6 @@
-"""Product catalog, shipping rate tables, tax rules, and bundle promotions.
-
-All SKUs in this catalog are normalized to uppercase. Order input uses
-lowercase hyphenated identifiers (e.g. "widget-a") which map to catalog
-keys and are normalized during the enrichment stage.
-"""
+"""Product catalog, shipping rate tables, tax rules, and bundle promotions."""
 
 # Product catalog: input_key -> product record
-# Note: product["sku"] is the normalized uppercase identifier
 PRODUCTS = {
     "widget-a": {
         "sku": "WIDGET-A",
@@ -160,7 +154,6 @@ TAX_RULES = {
 }
 
 # Bundle promotions: all required_skus must appear in the order to qualify.
-# required_skus use normalized uppercase identifiers (matching product["sku"]).
 BUNDLES = [
     {
         "id": "STARTER-KIT",

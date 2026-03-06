@@ -46,30 +46,18 @@ export function mergeConfigs<T extends BaseConfig>(base: T, overrides: Partial<T
 /**
  * Initialize a service with a merged configuration.
  * Returns metadata about the config version and enabled feature flags.
- *
- * BUG: `if (config.version)` uses truthiness to detect "version not set".
- * In JavaScript, 0 is falsy. When an override sets `version: 0` (which means
- * "use legacy mode"), this check treats it the same as if version were null/undefined.
- * The result: configVersion is "unknown" instead of "v0", and version-gated
- * features are not evaluated against the actual version number.
- *
- * The generic constraint `T extends BaseConfig` makes this look safe — version
- * is definitely a `number` — but the type system has no concept of falsy values.
  */
 export function initService<T extends BaseConfig>(base: T, overrides: Partial<T>[]): ServiceInit {
 	const config = mergeConfigs(base, overrides);
 
-	// BUG: version 0 is falsy — this check was meant to detect "no version set",
-	// but version 0 is a valid value meaning "legacy compatibility mode"
-	const configVersion = config.version
-		? `v${config.version}`
-		: "unknown";
+	// Derive the version tag; an unset version produces "unknown".
+	const configVersion = config.version ? `v${config.version}` : "unknown";
 
 	const features: string[] = [];
 	if (config.enabled) {
 		features.push("core");
 	}
-	// Version-gated features — never reached when version is 0 (falsy)
+	// Enable version-gated features based on config version.
 	if (config.version >= 2) {
 		features.push("advanced");
 	}

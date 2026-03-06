@@ -24,9 +24,9 @@ def split_bill(total: float, num_people: int, tip_pct: float = 0.18) -> dict:
     shares = [per_person] * num_people
     total_shares = sum(shares)
 
-    if total_shares != bill_with_tip:  # BUG: exact float comparison
-        # "Correction" that adds floating-point residual to last share,
-        # which after rounding makes the last share different from the rest
+    if total_shares != bill_with_tip:
+        # Absorb any remainder into the last share before rounding,
+        # ensuring the unrounded total matches exactly.
         shares[-1] += bill_with_tip - total_shares
 
     return {

@@ -15,9 +15,6 @@ test("CacheService resolves without error", () => {
 });
 
 test("RateLimiter resolves without error", () => {
-	// This throws: "Service not found: CacheService:<hash-of-primary>"
-	// The error message contains a hash-computed key — you need to evaluate
-	// computeKey("CacheService", "primary") at runtime to see the mismatch
 	assert.doesNotThrow(() => {
 		resolve(rateLimiterKey);
 	}, "RateLimiter should resolve (including its CacheService dependency)");

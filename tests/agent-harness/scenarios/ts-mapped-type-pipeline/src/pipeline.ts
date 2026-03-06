@@ -7,15 +7,7 @@
  *   3. Aggregate — groups events by type and computes metrics
  *   4. Report   — formats the final output
  *
- * BUG: Stage 1 (validate) conditionally applies field transforms based on
- * whether a schema exists for the event's type+version. Purchase events at
- * version 1 have a schema with a `revenue` transform (cents → dollars).
- * Purchase events at version 2 have NO registered schema, so they skip
- * validation entirely and their `revenue` field stays in cents.
- *
- * Stage 3 (aggregate) sums `payload.revenue` across all purchase events
- * without knowing which events were normalized and which weren't. The
- * result is a mix of dollars and cents: wildly wrong.
+ * Revenue figures in the payload are normalized during schema validation.
  */
 
 import { getSchema, hasSchema } from "./event-schemas.ts";
@@ -145,9 +137,6 @@ function aggregateEvents(events: EnrichedEvent[]): Map<string, EventMetrics> {
 		const segment = event.enriched.userSegment;
 		m.bySegment[segment] = (m.bySegment[segment] ?? 0) + 1;
 
-		// BUG: `payload.revenue` is in dollars for v1 events (schema-transformed)
-		// but still in cents for v2 events (no schema registered, not transformed).
-		// Both get added to the same `totalRevenue` counter.
 		if (m.totalRevenue !== null && event.payload.revenue !== undefined) {
 			m.totalRevenue += Number(event.payload.revenue);
 		}
@@ -182,9 +171,7 @@ function buildReport(metrics: Map<string, EventMetrics>): PipelineReport {
 	if (purchaseMetrics) {
 		for (const [segment, count] of Object.entries(purchaseMetrics.bySegment)) {
 			// Approximate revenue per segment proportionally
-			revenueBySegment[segment] = purchaseMetrics.totalRevenue !== null
-				? Math.round((purchaseMetrics.totalRevenue * count / purchaseMetrics.count) * 100) / 100
-				: 0;
+			revenueBySegment[segment] = purchaseMetrics.totalRevenue !== null ? Math.round(((purchaseMetrics.totalRevenue * count) / purchaseMetrics.count) * 100) / 100 : 0;
 		}
 	}
 

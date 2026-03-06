@@ -4,7 +4,7 @@
 		"language": "typescript",
 		"description": "A falsy truthiness check `if (config.version)` treats version 0 as \"not set\", but version 0 is a valid override meaning \"use legacy mode\", producing wrong configVersion and missing feature flags",
 		"timeout_seconds": 300,
-		"max_budget_usd": 1.50
+		"level": 1
 	},
 	"setup": {
 		"commands": ["npm install"]

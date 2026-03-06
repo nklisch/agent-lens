@@ -27,10 +27,7 @@ test("RateLimiter resolves without error", () => {
 test("CacheService dependency key matches what RateLimiter depends on", () => {
 	// After fix: the key declared in RateLimiter's dependency list should
 	// match what CacheService was registered with
-	assert.ok(
-		isRegistered(cacheKey),
-		`CacheService should be registered at key: ${cacheKey}`,
-	);
+	assert.ok(isRegistered(cacheKey), `CacheService should be registered at key: ${cacheKey}`);
 });
 
 test("RateLimiter instance has check method", () => {

@@ -3,19 +3,9 @@
  *
  * Services are registered with name + variant pairs. The container computes
  * a hash-based key from these. When one service depends on another, it must
- * declare the dependency using the exact same key that the dependency was
- * registered with.
- *
- * BUG: CacheService is registered with variant "shared", which produces key
- * `CacheService:<hash-of-shared>`. The RateLimiter service declares its
- * dependency using variant "primary" instead of "shared", producing a
- * different key `CacheService:<hash-of-primary>` — a key that is never
- * registered. When the container resolves RateLimiter, it tries to resolve
- * the dependency and throws "Service not found: CacheService:<hash-of-primary>".
- *
- * The source code alone doesn't reveal the mismatch — both look like valid
- * strings. You need to compute `computeKey("CacheService", "shared")` vs
- * `computeKey("CacheService", "primary")` at runtime to see the difference.
+ * declare the dependency using the key returned by the registration call.
+ * The exported key constants (cacheKey, loggerKey, etc.) should be used
+ * as dependency references wherever possible.
  */
 
 import { computeKey, register } from "./container.ts";
@@ -48,14 +38,10 @@ interface MetricsCollector {
 // ────────────────────────────────────────────────────────────────────────────
 // Registrations
 
-const loggerKey = register<Logger>(
-	"Logger",
-	"console",
-	() => ({
-		log: (msg: string) => console.log(`[LOG] ${msg}`),
-		error: (msg: string) => console.error(`[ERR] ${msg}`),
-	}),
-);
+const loggerKey = register<Logger>("Logger", "console", () => ({
+	log: (msg: string) => console.log(`[LOG] ${msg}`),
+	error: (msg: string) => console.error(`[ERR] ${msg}`),
+}));
 
 const metricsKey = register<MetricsCollector>(
 	"MetricsCollector",
@@ -75,10 +61,9 @@ const metricsKey = register<MetricsCollector>(
 	{ dependencies: [loggerKey] },
 );
 
-// CacheService registered with variant "shared"
 const cacheKey = register<Cache>(
 	"CacheService",
-	"shared", // variant is "shared"
+	"shared",
 	() => {
 		const store = new Map<string, { value: unknown; expires: number }>();
 		return {
@@ -96,22 +81,19 @@ const cacheKey = register<Cache>(
 	{ dependencies: [loggerKey, metricsKey] },
 );
 
-// BUG: RateLimiter declares a dependency on CacheService with variant "primary",
-// but CacheService was registered with variant "shared".
-// computeKey("CacheService", "primary") !== computeKey("CacheService", "shared")
-const wrongCacheKey = computeKey("CacheService", "primary"); // wrong variant!
+// Dependency key for CacheService used by RateLimiter
+const cacheDepKey = computeKey("CacheService", "primary");
 
 export const rateLimiterKey = register<RateLimiter>(
 	"RateLimiter",
 	"sliding-window",
 	() => {
-		const cache = { get: (k: string) => undefined, set: () => {}, delete: () => false } as Cache; // fallback, never reached
 		const windows = new Map<string, number[]>();
 		return {
 			check: (clientId: string) => {
 				const now = Date.now();
 				const window = windows.get(clientId) ?? [];
-				const recent = window.filter(t => now - t < 60_000);
+				const recent = window.filter((t) => now - t < 60_000);
 				recent.push(now);
 				windows.set(clientId, recent);
 				return recent.length <= 100;
@@ -120,7 +102,7 @@ export const rateLimiterKey = register<RateLimiter>(
 		};
 	},
 	{
-		dependencies: [wrongCacheKey, loggerKey], // BUG: wrongCacheKey resolves to an unregistered key
+		dependencies: [cacheDepKey, loggerKey],
 	},
 );
 

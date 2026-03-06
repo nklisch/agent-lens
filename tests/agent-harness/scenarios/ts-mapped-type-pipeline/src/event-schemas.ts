@@ -73,7 +73,5 @@ registerSchema({
 	},
 });
 
-// NOTE: purchase v2 schema is NOT registered — events with version 2 will
-// skip schema validation and pass through the raw payload unchanged.
-// This is the source of the unit mismatch: v2 purchase events keep revenue
-// in cents while v1 events are normalized to dollars.
+// Purchase v2 events use a lightweight payload structure and do not require
+// schema-level field transforms — validation is handled at the enrichment stage.

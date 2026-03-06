@@ -9,11 +9,7 @@ import { splitBill } from "./bill.ts";
 
 function checkSplit(total: number, numPeople: number, tipPct?: number) {
 	const split = tipPct !== undefined ? splitBill(total, numPeople, tipPct) : splitBill(total, numPeople);
-	assert.equal(
-		split.totalShares,
-		split.totalWithTip,
-		`${total} split ${numPeople} ways: totalShares ${split.totalShares} !== totalWithTip ${split.totalWithTip}`,
-	);
+	assert.equal(split.totalShares, split.totalWithTip, `${total} split ${numPeople} ways: totalShares ${split.totalShares} !== totalWithTip ${split.totalWithTip}`);
 	assert.equal(split.shares.length, numPeople);
 }
 
@@ -37,6 +33,6 @@ test("correct number of shares returned", () => {
 });
 
 test("totalWithTip is total plus tip percentage", () => {
-	const split = splitBill(100, 2, 0.20);
+	const split = splitBill(100, 2, 0.2);
 	assert.equal(split.totalWithTip, 120);
 });
