@@ -215,7 +215,7 @@ export function getAllSeats(venue) {
 		.map((section) =>
 			section.rows
 				? section.rows.flatMap((row) => row.seats) // regular: produce 1D per section
-				: section.zones.map((zone) => zone.rows.map((row) => row.seats)), // VIP: still 3-level nested
+				: section.zones.map((zone) => zone.rows.map((row) => row.seats)), // VIP: zones → rows → seats
 		)
 		.flat();
 }

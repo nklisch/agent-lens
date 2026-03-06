@@ -51,12 +51,12 @@ export async function checkout(eventId, seatSelections, options = {}) {
 	const sessionId = `sess-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
 	// Stage 1: Load event and configuration
-	const config = loadConfig(eventId); // Bug 1: shallow merge may have dropped pricing defaults
+	const config = loadConfig(eventId);
 	const event = getEvent(eventId);
 
 	// Stage 2: Resolve selected seats from venue layout
 	const venue = getVenue(event.venueId);
-	const allSeats = getAllSeats(venue); // Bug 5: VIP sections remain nested after .flat()
+	const allSeats = getAllSeats(venue);
 	const selectedSeats = seatSelections.map((sel) => allSeats.find((s) => s.id === sel.seatId)).filter(Boolean);
 
 	if (selectedSeats.length !== seatSelections.length) {
@@ -67,12 +67,10 @@ export async function checkout(eventId, seatSelections, options = {}) {
 	// Stage 3: Build and price ticket items
 	const rawItems = selectedSeats.map((seat) => buildTicketItem(seat, event, config));
 	const pricedItems = applyDynamicPricing(rawItems, event, config);
-	// After applyDynamicPricing: item.surgeTotal = item.price * multiplier + config.pricing.baseFee
-	// Bug 1 effect: config.pricing.baseFee is undefined → surgeTotal is NaN
 
 	// Stage 4: Apply discounts
 	const daysUntil = getDaysUntilEvent(eventId);
-	const earlyBirdRate = calculateEarlyBird(daysUntil); // Bug 3: returns 0.20 (decimal) not 20 (percent)
+	const earlyBirdRate = calculateEarlyBird(daysUntil);
 	const groupRate = calculateGroupDiscount(groupSize);
 	// Early-bird and group discounts are mutually exclusive; early-bird takes priority
 	const effectiveDiscountRate = earlyBirdRate > 0 ? earlyBirdRate : groupRate;
@@ -80,7 +78,6 @@ export async function checkout(eventId, seatSelections, options = {}) {
 	const discountedItems = pricedItems.map((item) => ({
 		...item,
 		finalPrice: effectiveDiscountRate > 0 ? applyDiscount(item.surgeTotal, effectiveDiscountRate) : item.surgeTotal,
-		// Bug 3 interaction: applyDiscount(surgeTotal, 0.20) = surgeTotal * 0.998 (0.2% off, not 20%)
 	}));
 
 	const appliedDiscounts = [];
@@ -103,7 +100,6 @@ export async function checkout(eventId, seatSelections, options = {}) {
 	}
 
 	// Stage 5: Calculate fees
-	// Bug 4: calculateOrderFees → calculateServiceFee reads item.price (original) not item.adjustedPrice
 	const fees = calculateOrderFees(discountedItems, config.fees);
 
 	// Stage 6: Lock seats and process payment

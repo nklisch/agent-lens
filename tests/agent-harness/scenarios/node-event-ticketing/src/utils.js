@@ -16,7 +16,6 @@ export function daysUntil(isoDate) {
 	const now = Date.now();
 	const target = new Date(isoDate).getTime();
 	// BUG? this might need timezone adjustment
-	// Actually: both dates are in UTC milliseconds — no timezone adjustment needed here.
 	const diffMs = target - now;
 	return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 }

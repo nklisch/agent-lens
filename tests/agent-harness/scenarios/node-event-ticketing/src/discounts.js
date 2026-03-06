@@ -3,7 +3,7 @@
  *
  * Handles early-bird discounts, group rate discounts, and promotional
  * code application. Discount values are returned as integers representing
- * percentage points (0-100) — except where noted.
+ * percentage points (0-100).
  */
 
 // Promotional code registry

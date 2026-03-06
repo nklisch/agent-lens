@@ -61,7 +61,7 @@ export function applyDynamicPricing(items, event, config) {
 		...item,
 		adjustedPrice: roundMoney(item.price * multiplier),
 		originalPrice: item.price,
-		surgeTotal: roundMoney(item.price * multiplier + baseFee), // NaN when baseFee is undefined (Bug 1)
+		surgeTotal: roundMoney(item.price * multiplier + baseFee),
 		surgeMultiplier: multiplier,
 		surgeLabel,
 	}));

@@ -21,7 +21,7 @@ import { roundMoney } from './utils.js';
  * @returns {number} Service fee amount
  */
 export function calculateServiceFee(item, feeConfig) {
-	const fee = item.price * feeConfig.servicePercent; // reads original price, not surge-adjusted
+	const fee = item.price * feeConfig.servicePercent;
 	return roundMoney(fee);
 }
 

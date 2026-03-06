@@ -53,7 +53,6 @@ export function loadConfig(eventId) {
 	const eventOverrides = JSON.parse(Buffer.from(encoded, 'base64').toString());
 
 	// Merge event overrides on top of defaults.
-	// Object.assign performs a shallow merge — event-level keys replace entire default objects.
 	const config = Object.assign({}, DEFAULTS, eventOverrides);
 
 	_cache.set(eventId, config);
