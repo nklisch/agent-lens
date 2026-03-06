@@ -1,0 +1,3 @@
+The order processing system is producing wrong results. A test order for customer "Acme Corp" (a Gold loyalty customer) ends up with status "failed_inventory" even though there's plenty of stock. The order total also looks wrong — the loyalty discount seems either missing or doubled depending on which part of the system you check. Something changed recently and the team suspects multiple issues.
+
+The system has a layered architecture with models, data access, services, and infrastructure in their respective subdirectories. The entry point is `app.py`. Run `python3 -m pytest test_orders.py -x -q` to see the failing tests.
