@@ -1,16 +1,14 @@
 import type { ChildProcess } from "node:child_process";
 import { exec, spawn } from "node:child_process";
-import { createWriteStream, existsSync, mkdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { access } from "node:fs/promises";
-import { get as httpsGet } from "node:https";
 import type { Socket } from "node:net";
-import { homedir, platform } from "node:os";
+import { platform } from "node:os";
 import { basename, dirname, join, resolve as resolvePath } from "node:path";
-import { pipeline } from "node:stream/promises";
 import { promisify } from "node:util";
-import { LaunchError } from "../core/errors.js";
+import { getErrorMessage, LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
+import { allocatePort, CONNECT_SLOW, connectTCP, downloadError, downloadToFile, ensureAdapterCacheDir, getAdapterCacheDir, gracefulDispose, spawnAndWait } from "./helpers.js";
 
 const execAsync = promisify(exec);
 
@@ -23,7 +21,7 @@ const CODELLDB_VERSION = "1.12.1";
  * Returns the path to the CodeLLDB adapter cache directory.
  */
 export function getCodeLLDBCachePath(): string {
-	return join(homedir(), ".agent-lens", "adapters", "codelldb");
+	return getAdapterCacheDir("codelldb");
 }
 
 /**
@@ -64,49 +62,20 @@ function getVsixUrl(): string {
 }
 
 /**
- * Download a URL to a local file, following redirects.
- */
-function downloadToFile(url: string, destPath: string): Promise<void> {
-	return new Promise((resolve, reject) => {
-		const file = createWriteStream(destPath);
-		const req = httpsGet(url, (response) => {
-			if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-				file.destroy();
-				downloadToFile(response.headers.location, destPath).then(resolve).catch(reject);
-				return;
-			}
-			if (response.statusCode !== 200) {
-				file.destroy();
-				reject(new Error(`HTTP ${response.statusCode} downloading CodeLLDB from ${url}`));
-				return;
-			}
-			pipeline(response, file).then(resolve).catch(reject);
-		});
-		req.on("error", reject);
-	});
-}
-
-/**
  * Download and cache the CodeLLDB DAP adapter binary.
  * Downloads the VSIX from GitHub releases and extracts the adapter binary.
  * Returns the path to the adapter binary.
  */
 export async function downloadAndCacheCodeLLDB(): Promise<string> {
-	const cacheDir = getCodeLLDBCachePath();
-	mkdirSync(cacheDir, { recursive: true });
+	const cacheDir = ensureAdapterCacheDir("codelldb");
 
 	const vsixUrl = getVsixUrl();
 	const vsixPath = join(cacheDir, "codelldb.vsix");
 
 	try {
-		await downloadToFile(vsixUrl, vsixPath);
+		await downloadToFile(vsixUrl, vsixPath, "CodeLLDB");
 	} catch (err) {
-		throw new Error(
-			`Failed to download CodeLLDB v${CODELLDB_VERSION}.\n` +
-				`URL: ${vsixUrl}\n` +
-				`Error: ${err instanceof Error ? err.message : String(err)}\n` +
-				`To install manually, download the VSIX and extract the adapter/ directory to: ${cacheDir}`,
-		);
+		throw downloadError("CodeLLDB", CODELLDB_VERSION, vsixUrl, cacheDir, err, `To install manually, download the VSIX and extract the adapter/ directory to: ${cacheDir}`);
 	}
 
 	// Extract the VSIX (it's a zip file) and pull out the adapter binary
@@ -115,7 +84,7 @@ export async function downloadAndCacheCodeLLDB(): Promise<string> {
 		// Rename extension/adapter/ to adapter/
 		await execAsync(`mv -f "${join(cacheDir, "extension", "adapter")}" "${join(cacheDir, "adapter")}" 2>/dev/null || true`);
 	} catch (err) {
-		throw new Error(`Failed to extract CodeLLDB VSIX.\n` + `Error: ${err instanceof Error ? err.message : String(err)}\n` + `Ensure 'unzip' is installed on your system.`);
+		throw new Error(`Failed to extract CodeLLDB VSIX.\nError: ${getErrorMessage(err)}\nEnsure 'unzip' is installed on your system.`);
 	}
 
 	const binaryPath = getAdapterBinaryPath();
@@ -243,7 +212,7 @@ export class RustAdapter implements DebugAdapter {
 			try {
 				await execAsync("cargo build", { cwd, env: { ...process.env, ...config.env } });
 			} catch (err) {
-				throw new LaunchError(`cargo build failed: ${err instanceof Error ? err.message : String(err)}`);
+				throw new LaunchError(`cargo build failed: ${getErrorMessage(err)}`);
 			}
 		}
 
@@ -262,7 +231,7 @@ export class RustAdapter implements DebugAdapter {
 
 		this.adapterProcess = adapterProc;
 
-		const socket = await connectTCP("127.0.0.1", port, 25, 200).catch((err) => {
+		const socket = await connectTCP("127.0.0.1", port, CONNECT_SLOW.maxRetries, CONNECT_SLOW.retryDelayMs).catch((err) => {
 			adapterProc.kill();
 			throw new LaunchError(`Could not connect to CodeLLDB on port ${port}: ${err.message}`);
 		});
@@ -303,7 +272,7 @@ export class RustAdapter implements DebugAdapter {
 
 		this.adapterProcess = adapterProc;
 
-		const socket = await connectTCP("127.0.0.1", port, 25, 200).catch((err) => {
+		const socket = await connectTCP("127.0.0.1", port, CONNECT_SLOW.maxRetries, CONNECT_SLOW.retryDelayMs).catch((err) => {
 			adapterProc.kill();
 			throw new LaunchError(`Could not connect to CodeLLDB on port ${port}: ${err.message}`);
 		});

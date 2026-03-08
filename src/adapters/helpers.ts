@@ -1,8 +1,13 @@
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
+import { createWriteStream, mkdirSync } from "node:fs";
+import { get as httpsGet } from "node:https";
 import type { Socket } from "node:net";
 import { createConnection, createServer } from "node:net";
-import { LaunchError } from "../core/errors.js";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { pipeline } from "node:stream/promises";
+import { getErrorMessage, LaunchError } from "../core/errors.js";
 
 /**
  * Allocate a free TCP port by binding to port 0, reading the
@@ -123,6 +128,13 @@ export async function gracefulDispose(socket: Socket | null, proc: ChildProcess 
 }
 
 /**
+ * TCP retry presets for adapters grouped by startup speed.
+ */
+export const CONNECT_FAST = { maxRetries: 5, retryDelayMs: 300 } as const;
+export const CONNECT_SLOW = { maxRetries: 25, retryDelayMs: 200 } as const;
+export const CONNECT_PATIENT = { maxRetries: 30, retryDelayMs: 300 } as const;
+
+/**
  * Connect a TCP socket to host:port with retry logic.
  * Retries up to `maxRetries` times with `retryDelayMs` between attempts.
  * Returns the connected Socket.
@@ -151,4 +163,54 @@ export function connectTCP(host: string, port: number, maxRetries = 3, retryDela
 
 		tryConnect();
 	});
+}
+
+/**
+ * Returns the cache directory for a named adapter under ~/.agent-lens/adapters/<adapterName>.
+ */
+export function getAdapterCacheDir(adapterName: string): string {
+	return join(homedir(), ".agent-lens", "adapters", adapterName);
+}
+
+/**
+ * Ensures the adapter cache directory exists and returns its path.
+ */
+export function ensureAdapterCacheDir(adapterName: string): string {
+	const dir = getAdapterCacheDir(adapterName);
+	mkdirSync(dir, { recursive: true });
+	return dir;
+}
+
+/**
+ * Download a URL to a local file, following redirects.
+ * `label` is used in the HTTP error message (e.g. "CodeLLDB", "java-debug-adapter").
+ */
+export function downloadToFile(url: string, destPath: string, label = "file"): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const file = createWriteStream(destPath);
+		const req = httpsGet(url, (response) => {
+			if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+				file.destroy();
+				downloadToFile(response.headers.location, destPath, label).then(resolve).catch(reject);
+				return;
+			}
+			if (response.statusCode !== 200) {
+				file.destroy();
+				reject(new Error(`HTTP ${response.statusCode} downloading ${label} from ${url}`));
+				return;
+			}
+			pipeline(response, file).then(resolve).catch(reject);
+		});
+		req.on("error", reject);
+	});
+}
+
+/**
+ * Build a standardised download-failure error message.
+ * `manualHint` overrides the default "place it at: <destPath>" hint.
+ */
+export function downloadError(tool: string, version: string, url: string, destPath: string, err: unknown, manualHint?: string): Error {
+	const errMsg = getErrorMessage(err);
+	const hint = manualHint ?? `To install manually, download and place it at: ${destPath}`;
+	return new Error(`Failed to download ${tool} v${version}.\nURL: ${url}\nError: ${errMsg}\n${hint}`);
 }

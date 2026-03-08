@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import type { Socket } from "node:net";
 import { resolve as resolvePath } from "node:path";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
+import { allocatePort, CONNECT_FAST, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
 import { getJsDebugAdapterPath } from "./js-debug-adapter.js";
 
 export class NodeAdapter implements DebugAdapter {
@@ -88,7 +88,7 @@ export class NodeAdapter implements DebugAdapter {
 		this.adapterProcess = adapterProc;
 
 		// Run the parent DAP session to get the child configuration from `startDebugging`.
-		const parentSocket = await connectTCP("127.0.0.1", port, 5, 300);
+		const parentSocket = await connectTCP("127.0.0.1", port, CONNECT_FAST.maxRetries, CONNECT_FAST.retryDelayMs);
 		this.parentSocket = parentSocket;
 
 		const childConfig = await runJsDebugParentSession(parentSocket, {
@@ -103,7 +103,7 @@ export class NodeAdapter implements DebugAdapter {
 		});
 
 		// Connect the child session — this is what the session manager will use.
-		const childSocket = await connectTCP("127.0.0.1", port, 5, 300);
+		const childSocket = await connectTCP("127.0.0.1", port, CONNECT_FAST.maxRetries, CONNECT_FAST.retryDelayMs);
 		this.socket = childSocket;
 
 		return {

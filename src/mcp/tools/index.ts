@@ -5,6 +5,7 @@ import { listAdapters } from "../../adapters/registry.js";
 import { configToOptions, parseLaunchJson } from "../../core/launch-json.js";
 import type { SessionManager } from "../../core/session-manager.js";
 import { listDetectors } from "../../frameworks/index.js";
+import { errorResponse } from "./utils.js";
 
 /**
  * Breakpoint schema with agent-facing descriptions for MCP tool inputs.
@@ -654,9 +655,4 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			}
 		},
 	);
-}
-
-function errorResponse(err: unknown): { content: Array<{ type: "text"; text: string }>; isError: true } {
-	const message = err instanceof Error ? err.message : String(err);
-	return { content: [{ type: "text" as const, text: message }], isError: true };
 }

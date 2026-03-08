@@ -4,6 +4,7 @@ import { SessionDiffer } from "../../browser/investigation/diff.js";
 import type { InspectParams, OverviewOptions, QueryEngine } from "../../browser/investigation/query-engine.js";
 import { renderDiff, renderInspectResult, renderSearchResults, renderSessionList, renderSessionOverview } from "../../browser/investigation/renderers.js";
 import { ReplayContextGenerator } from "../../browser/investigation/replay-context.js";
+import { errorResponse } from "./utils.js";
 
 export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine): void {
 	// Tool 1: session_list
@@ -43,7 +44,10 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			"Focus on a specific marker with around_marker.",
 		{
 			session_id: z.string().describe("Session ID from session_list"),
-			include: z.array(z.enum(["timeline", "markers", "errors", "network_summary"])).optional().describe("What to include. Default: all"),
+			include: z
+				.array(z.enum(["timeline", "markers", "errors", "network_summary"]))
+				.optional()
+				.describe("What to include. Default: all"),
 			around_marker: z.string().optional().describe("Center overview on this marker ID"),
 			time_range: z
 				.object({
@@ -168,7 +172,10 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			session_id: z.string().describe("Session ID"),
 			before: z.string().describe("First moment — timestamp (ISO or HH:MM:SS) or event ID"),
 			after: z.string().describe("Second moment — timestamp (ISO or HH:MM:SS) or event ID"),
-			include: z.array(z.enum(["form_state", "storage", "url", "console_new", "network_new"])).optional().describe("What to diff. Default: all"),
+			include: z
+				.array(z.enum(["form_state", "storage", "url", "console_new", "network_new"]))
+				.optional()
+				.describe("What to diff. Default: all"),
 			token_budget: z.number().optional().describe("Max tokens. Default: 2000"),
 		},
 		async ({ session_id, before, after, include, token_budget }) => {
@@ -219,9 +226,4 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			}
 		},
 	);
-}
-
-function errorResponse(err: unknown): { content: Array<{ type: "text"; text: string }>; isError: true } {
-	const message = err instanceof Error ? err.message : String(err);
-	return { content: [{ type: "text" as const, text: message }], isError: true };
 }

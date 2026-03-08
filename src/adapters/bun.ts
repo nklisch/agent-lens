@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import type { Socket } from "node:net";
 import { resolve as resolvePath } from "node:path";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
+import { allocatePort, CONNECT_FAST, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
 import { getJsDebugAdapterPath } from "./js-debug-adapter.js";
 
 export class BunAdapter implements DebugAdapter {
@@ -88,7 +88,7 @@ export class BunAdapter implements DebugAdapter {
 		// Run the js-debug parent session: send `attach` (with websocketAddress so
 		// js-debug can connect to Bun's inspector WebSocket directly), wait for the
 		// `startDebugging` reverse request, and return the child session config.
-		const parentSocket = await connectTCP("127.0.0.1", dapPort, 5, 300);
+		const parentSocket = await connectTCP("127.0.0.1", dapPort, CONNECT_FAST.maxRetries, CONNECT_FAST.retryDelayMs);
 		this.parentSocket = parentSocket;
 
 		const childConfig = await runJsDebugBunParentSession(parentSocket, {
@@ -99,7 +99,7 @@ export class BunAdapter implements DebugAdapter {
 		});
 
 		// Connect the child session — this is what the session manager will use.
-		const childSocket = await connectTCP("127.0.0.1", dapPort, 5, 300);
+		const childSocket = await connectTCP("127.0.0.1", dapPort, CONNECT_FAST.maxRetries, CONNECT_FAST.retryDelayMs);
 		this.socket = childSocket;
 
 		return {
@@ -130,7 +130,7 @@ export class BunAdapter implements DebugAdapter {
 		});
 		this.adapterProcess = adapterProc;
 
-		const socket = await connectTCP("127.0.0.1", dapPort, 5, 300);
+		const socket = await connectTCP("127.0.0.1", dapPort, CONNECT_FAST.maxRetries, CONNECT_FAST.retryDelayMs);
 		this.socket = socket;
 
 		return {

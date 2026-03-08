@@ -1,11 +1,11 @@
 import { exec } from "node:child_process";
-import { createWriteStream, existsSync, mkdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
-import { get as httpsGet } from "node:https";
-import { homedir } from "node:os";
 import { join } from "node:path";
-import { pipeline } from "node:stream/promises";
 import { promisify } from "node:util";
+
+import { getErrorMessage } from "../core/errors.js";
+import { downloadError, downloadToFile, ensureAdapterCacheDir, getAdapterCacheDir as getSharedAdapterCacheDir } from "./helpers.js";
 
 const execAsync = promisify(exec);
 
@@ -18,7 +18,7 @@ const JS_DEBUG_VERSION = "1.110.0";
  * Path to the adapter cache directory.
  */
 export function getAdapterCacheDir(): string {
-	return join(homedir(), ".agent-lens", "adapters", "js-debug");
+	return getSharedAdapterCacheDir("js-debug");
 }
 
 /**
@@ -58,56 +58,26 @@ async function isCachedVersionCurrent(): Promise<boolean> {
 }
 
 /**
- * Download a URL to a local file.
- */
-function downloadToFile(url: string, destPath: string): Promise<void> {
-	return new Promise((resolve, reject) => {
-		const file = createWriteStream(destPath);
-		const req = httpsGet(url, (response) => {
-			if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-				// Follow redirect
-				file.destroy();
-				downloadToFile(response.headers.location, destPath).then(resolve).catch(reject);
-				return;
-			}
-			if (response.statusCode !== 200) {
-				file.destroy();
-				reject(new Error(`HTTP ${response.statusCode} downloading js-debug adapter from ${url}`));
-				return;
-			}
-			pipeline(response, file).then(resolve).catch(reject);
-		});
-		req.on("error", reject);
-	});
-}
-
-/**
  * Download and extract the js-debug DAP adapter.
  * Fetches the VSIX from GitHub releases and extracts with the system's unzip.
  */
 export async function downloadJsDebugAdapter(): Promise<void> {
-	const cacheDir = getAdapterCacheDir();
-	mkdirSync(cacheDir, { recursive: true });
+	const cacheDir = ensureAdapterCacheDir("js-debug");
 
 	const vsixUrl = `https://github.com/microsoft/vscode-js-debug/releases/download/v${JS_DEBUG_VERSION}/js-debug-dap-v${JS_DEBUG_VERSION}.tar.gz`;
 	const tarPath = join(cacheDir, "js-debug.tar.gz");
 
 	try {
-		await downloadToFile(vsixUrl, tarPath);
+		await downloadToFile(vsixUrl, tarPath, "js-debug adapter");
 	} catch (err) {
-		throw new Error(
-			`Failed to download js-debug DAP adapter v${JS_DEBUG_VERSION}.\n` +
-				`URL: ${vsixUrl}\n` +
-				`Error: ${err instanceof Error ? err.message : String(err)}\n` +
-				`To install manually, download the adapter and place dapDebugServer.js at: ${getDapServerPath()}`,
-		);
+		throw downloadError("js-debug DAP adapter", JS_DEBUG_VERSION, vsixUrl, getDapServerPath(), err, `To install manually, download the adapter and place dapDebugServer.js at: ${getDapServerPath()}`);
 	}
 
 	// Extract the tar.gz into cacheDir
 	try {
 		await execAsync(`tar -xzf "${tarPath}" -C "${cacheDir}"`);
 	} catch (err) {
-		throw new Error(`Failed to extract js-debug adapter.\n` + `Error: ${err instanceof Error ? err.message : String(err)}\n` + `Ensure 'tar' is installed on your system.`);
+		throw new Error(`Failed to extract js-debug adapter.\nError: ${getErrorMessage(err)}\nEnsure 'tar' is installed on your system.`);
 	}
 
 	// Verify the extracted file exists

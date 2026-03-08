@@ -3,7 +3,7 @@ import { exec, spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { extname, join, resolve as resolvePath } from "node:path";
 import { promisify } from "node:util";
-import { LaunchError } from "../core/errors.js";
+import { getErrorMessage, LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
 import { gracefulDispose } from "./helpers.js";
 
@@ -94,7 +94,7 @@ export class SwiftAdapter implements DebugAdapter {
 					env: { ...process.env, ...config.env },
 				});
 			} catch (err) {
-				throw new LaunchError(`Swift compilation failed: ${err instanceof Error ? err.message : String(err)}`);
+				throw new LaunchError(`Swift compilation failed: ${getErrorMessage(err)}`);
 			}
 
 			binaryPath = outPath;
@@ -106,7 +106,7 @@ export class SwiftAdapter implements DebugAdapter {
 					env: { ...process.env, ...config.env },
 				});
 			} catch (err) {
-				throw new LaunchError(`swift build failed: ${err instanceof Error ? err.message : String(err)}`);
+				throw new LaunchError(`swift build failed: ${getErrorMessage(err)}`);
 			}
 
 			// Locate binary — use the target name or derive from directory name

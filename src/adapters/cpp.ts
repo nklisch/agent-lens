@@ -3,7 +3,7 @@ import { exec, spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { extname, join, resolve as resolvePath } from "node:path";
 import { promisify } from "node:util";
-import { LaunchError } from "../core/errors.js";
+import { getErrorMessage, LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
 import { gracefulDispose } from "./helpers.js";
 
@@ -138,7 +138,7 @@ export class CppAdapter implements DebugAdapter {
 					env: { ...process.env, ...config.env },
 				});
 			} catch (err) {
-				throw new LaunchError(`Compilation failed: ${err instanceof Error ? err.message : String(err)}`);
+				throw new LaunchError(`Compilation failed: ${getErrorMessage(err)}`);
 			}
 
 			binaryPath = outPath;
@@ -147,7 +147,7 @@ export class CppAdapter implements DebugAdapter {
 			try {
 				await execAsync(config.command, { cwd, env: { ...process.env, ...config.env } });
 			} catch (err) {
-				throw new LaunchError(`Build failed: ${err instanceof Error ? err.message : String(err)}`);
+				throw new LaunchError(`Build failed: ${getErrorMessage(err)}`);
 			}
 			// Default to looking for binary in cwd — user should specify path explicitly for builds
 			binaryPath = resolvePath(cwd, "a.out");

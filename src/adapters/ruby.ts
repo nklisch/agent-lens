@@ -5,7 +5,7 @@ import type { Socket } from "node:net";
 import { isAbsolute, resolve as resolvePath } from "node:path";
 import { LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, connectTCP, gracefulDispose } from "./helpers.js";
+import { allocatePort, CONNECT_SLOW, connectTCP, gracefulDispose } from "./helpers.js";
 
 export class RubyAdapter implements DebugAdapter {
 	id = "ruby";
@@ -101,7 +101,7 @@ export class RubyAdapter implements DebugAdapter {
 		if (earlyError) throw earlyError;
 
 		// Poll TCP until rdbg is ready
-		const socket = await connectTCP("127.0.0.1", port, 25, 200).catch((err) => {
+		const socket = await connectTCP("127.0.0.1", port, CONNECT_SLOW.maxRetries, CONNECT_SLOW.retryDelayMs).catch((err) => {
 			child.kill();
 			throw new LaunchError(`Could not connect to rdbg on port ${port}: ${err.message}. output: ${stderrBuffer.join("")}`, stderrBuffer.join(""));
 		});

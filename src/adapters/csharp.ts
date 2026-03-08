@@ -5,9 +5,9 @@ import type { Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { basename, extname, join, resolve as resolvePath } from "node:path";
 import { promisify } from "node:util";
-import { LaunchError } from "../core/errors.js";
+import { getErrorMessage, LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
+import { allocatePort, CONNECT_SLOW, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
 import { downloadAndCacheNetcoredbg, getNetcoredbgBinaryPath, isNetcoredbgCached } from "./netcoredbg.js";
 
 const execAsync = promisify(exec);
@@ -78,7 +78,7 @@ export class CSharpAdapter implements DebugAdapter {
 					env: { ...process.env, ...config.env },
 				});
 			} catch (err) {
-				throw new LaunchError(`dotnet build failed: ${err instanceof Error ? err.message : String(err)}`);
+				throw new LaunchError(`dotnet build failed: ${getErrorMessage(err)}`);
 			}
 			// Find the main DLL (excludes *.deps.json, *.runtimeconfig.json etc.)
 			const { stdout } = await execAsync(`ls "${outDir}"/*.dll | grep -v 'deps\\.json\\|runtimeconfig' | head -1`).catch(() => ({ stdout: "" }));
@@ -120,7 +120,7 @@ export class CSharpAdapter implements DebugAdapter {
 
 		this.adapterProcess = adapterProc;
 
-		const socket = await connectTCP("127.0.0.1", port, 25, 200).catch((err) => {
+		const socket = await connectTCP("127.0.0.1", port, CONNECT_SLOW.maxRetries, CONNECT_SLOW.retryDelayMs).catch((err) => {
 			adapterProc.kill();
 			throw new LaunchError(`Could not connect to netcoredbg on port ${port}: ${err.message}`);
 		});
@@ -172,7 +172,7 @@ export class CSharpAdapter implements DebugAdapter {
 
 		this.adapterProcess = adapterProc;
 
-		const socket = await connectTCP("127.0.0.1", port, 25, 200).catch((err) => {
+		const socket = await connectTCP("127.0.0.1", port, CONNECT_SLOW.maxRetries, CONNECT_SLOW.retryDelayMs).catch((err) => {
 			adapterProc.kill();
 			throw new LaunchError(`Could not connect to netcoredbg on port ${port}: ${err.message}`);
 		});
@@ -230,7 +230,7 @@ async function compileSingleCsFile(srcPath: string, env?: Record<string, string>
 			env: { ...process.env, ...env },
 		});
 	} catch (err) {
-		throw new LaunchError(`dotnet build failed for ${srcPath}: ${err instanceof Error ? err.message : String(err)}`);
+		throw new LaunchError(`dotnet build failed for ${srcPath}: ${getErrorMessage(err)}`);
 	}
 
 	const dllPath = join(outDir, `${projectName}.dll`);

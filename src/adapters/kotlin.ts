@@ -1,14 +1,12 @@
 import type { ChildProcess } from "node:child_process";
 import { exec, spawn } from "node:child_process";
-import { copyFileSync, createWriteStream, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
-import { get as httpsGet } from "node:https";
-import { homedir, tmpdir } from "node:os";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, resolve as resolvePath } from "node:path";
-import { pipeline } from "node:stream/promises";
 import { promisify } from "node:util";
-import { LaunchError } from "../core/errors.js";
+import { getErrorMessage, LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { gracefulDispose } from "./helpers.js";
+import { downloadError, downloadToFile, ensureAdapterCacheDir, getAdapterCacheDir, gracefulDispose } from "./helpers.js";
 
 const execAsync = promisify(exec);
 
@@ -21,7 +19,7 @@ const KDA_URL = `https://github.com/fwcd/kotlin-debug-adapter/releases/download/
 const KDA_MAIN_CLASS = "org.javacs.ktda.KDAMainKt";
 
 function getKdaCacheDir(): string {
-	return join(homedir(), ".agent-lens", "adapters", "kotlin-debug");
+	return getAdapterCacheDir("kotlin-debug");
 }
 
 function getKdaMarkerJar(): string {
@@ -44,29 +42,6 @@ function buildKdaClasspath(): string {
 }
 
 /**
- * Download a URL to a local file, following redirects.
- */
-function downloadToFile(url: string, destPath: string): Promise<void> {
-	return new Promise((resolve, reject) => {
-		const file = createWriteStream(destPath);
-		const req = httpsGet(url, (response) => {
-			if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-				file.destroy();
-				downloadToFile(response.headers.location, destPath).then(resolve).catch(reject);
-				return;
-			}
-			if (response.statusCode !== 200) {
-				file.destroy();
-				reject(new Error(`HTTP ${response.statusCode} downloading kotlin-debug-adapter from ${url}`));
-				return;
-			}
-			pipeline(response, file).then(resolve).catch(reject);
-		});
-		req.on("error", reject);
-	});
-}
-
-/**
  * Download and extract the kotlin-debug-adapter zip, caching all lib JARs.
  */
 async function downloadAndCacheKda(): Promise<void> {
@@ -77,12 +52,9 @@ async function downloadAndCacheKda(): Promise<void> {
 	const zipPath = join(tmpdir(), `kotlin-debug-adapter-${KDA_VERSION}.zip`);
 
 	try {
-		await downloadToFile(KDA_URL, zipPath);
+		await downloadToFile(KDA_URL, zipPath, "kotlin-debug-adapter");
 	} catch (err) {
-		throw new Error(
-			`Failed to download kotlin-debug-adapter v${KDA_VERSION}.\nURL: ${KDA_URL}\nError: ${err instanceof Error ? err.message : String(err)}\n` +
-				`To install manually, download ${KDA_URL} and extract adapter/lib/*.jar to: ${libDir}`,
-		);
+		throw downloadError("kotlin-debug-adapter", KDA_VERSION, KDA_URL, libDir, err, `To install manually, download ${KDA_URL} and extract adapter/lib/*.jar to: ${libDir}`);
 	}
 
 	// Extract adapter/lib/*.jar into the cache lib directory
@@ -91,7 +63,7 @@ async function downloadAndCacheKda(): Promise<void> {
 		await execAsync(`mv "${cacheDir}/extract/adapter/lib/"*.jar "${libDir}/"`, { timeout: 10_000 });
 		await execAsync(`rm -rf "${cacheDir}/extract"`, { timeout: 5_000 });
 	} catch (err) {
-		throw new Error(`Failed to extract kotlin-debug-adapter: ${err instanceof Error ? err.message : String(err)}`);
+		throw new Error(`Failed to extract kotlin-debug-adapter: ${getErrorMessage(err)}`);
 	}
 }
 
@@ -238,7 +210,7 @@ export class KotlinAdapter implements DebugAdapter {
 					timeout: 60_000,
 				});
 			} catch (err) {
-				throw new LaunchError(`kotlinc compilation failed: ${err instanceof Error ? err.message : String(err)}`);
+				throw new LaunchError(`kotlinc compilation failed: ${getErrorMessage(err)}`);
 			}
 		} else if (parsed.type === "jar") {
 			// For pre-compiled JARs, put them where ProjectClassesResolver looks.
@@ -247,7 +219,7 @@ export class KotlinAdapter implements DebugAdapter {
 			try {
 				await execAsync(`jar xf "${jarPath}"`, { cwd: classOutputDir, timeout: 10_000 });
 			} catch (err) {
-				throw new LaunchError(`Failed to extract JAR: ${err instanceof Error ? err.message : String(err)}`);
+				throw new LaunchError(`Failed to extract JAR: ${getErrorMessage(err)}`);
 			}
 			mainClass = basename(parsed.path, ".jar");
 		} else {

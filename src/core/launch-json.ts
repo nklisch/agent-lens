@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve as resolvePath } from "node:path";
 import { z } from "zod";
+import { getErrorMessage } from "./errors.js";
 import type { AttachOptions, LaunchOptions } from "./session-manager.js";
 
 /**
@@ -145,7 +146,7 @@ export async function parseLaunchJson(filePath: string): Promise<LaunchJsonFile 
 		if ((err as NodeJS.ErrnoException).code === "ENOENT") {
 			return null;
 		}
-		throw new Error(`Failed to read launch.json at ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
+		throw new Error(`Failed to read launch.json at ${filePath}: ${getErrorMessage(err)}`);
 	}
 
 	const stripped = stripJsonc(raw);
@@ -154,7 +155,7 @@ export async function parseLaunchJson(filePath: string): Promise<LaunchJsonFile 
 	try {
 		parsed = JSON.parse(stripped);
 	} catch (err) {
-		throw new Error(`Failed to parse launch.json at ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
+		throw new Error(`Failed to parse launch.json at ${filePath}: ${getErrorMessage(err)}`);
 	}
 
 	const result = LaunchJsonFileSchema.safeParse(parsed);

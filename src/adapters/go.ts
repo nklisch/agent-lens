@@ -6,7 +6,7 @@ import { homedir } from "node:os";
 import { isAbsolute, join, resolve as resolvePath } from "node:path";
 import { LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
+import { allocatePort, CONNECT_FAST, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
 
 /**
  * Build an augmented PATH that includes common Go binary install locations
@@ -84,7 +84,7 @@ export class GoAdapter implements DebugAdapter {
 		this.dlvProcess = dlvProc;
 
 		// Connect TCP with retries — Delve can take a moment to accept connections
-		const socket = await connectTCP("127.0.0.1", port, 5, 300);
+		const socket = await connectTCP("127.0.0.1", port, CONNECT_FAST.maxRetries, CONNECT_FAST.retryDelayMs);
 		this.socket = socket;
 
 		return {
@@ -121,7 +121,7 @@ export class GoAdapter implements DebugAdapter {
 
 		this.dlvProcess = dlvProc;
 
-		const socket = await connectTCP("127.0.0.1", port, 5, 300);
+		const socket = await connectTCP("127.0.0.1", port, CONNECT_FAST.maxRetries, CONNECT_FAST.retryDelayMs);
 		this.socket = socket;
 
 		return {
