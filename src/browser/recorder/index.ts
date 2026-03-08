@@ -1,13 +1,13 @@
 import type { ChildProcess } from "node:child_process";
 import { BrowserRecorderStateError } from "../../core/errors.js";
-import { type PersistenceConfig, PersistenceConfigSchema, PersistencePipeline } from "../storage/persistence.js";
+import { type PersistenceConfig, PersistencePipeline } from "../storage/persistence.js";
 import { RetentionConfigSchema } from "../storage/retention.js";
 import { ScreenshotCapture, type ScreenshotConfig, ScreenshotConfigSchema } from "../storage/screenshot.js";
 import type { BrowserSessionInfo, Marker } from "../types.js";
 import type { DetectionRule } from "./auto-detect.js";
 import { AutoDetector, DEFAULT_DETECTION_RULES } from "./auto-detect.js";
-import { ChromeLauncher } from "./chrome-launcher.js";
 import type { CDPClient } from "./cdp-client.js";
+import { ChromeLauncher } from "./chrome-launcher.js";
 import { EventNormalizer } from "./event-normalizer.js";
 import { EventPipeline } from "./event-pipeline.js";
 import { InputTracker } from "./input-tracker.js";
@@ -143,8 +143,7 @@ export class BrowserRecorder {
 			this.eventPipeline?.process(sessionId, method, params);
 		});
 
-		// Enable Target domain and discover tabs
-		await this.cdpClient.enableDomain("Target");
+		// Discover tabs (TabManager calls Target.setDiscoverTargets internally)
 		await this.tabManager.discoverTabs();
 
 		// Start recording tabs

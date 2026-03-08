@@ -51,8 +51,8 @@ export function spawnCapture(command: string, args: string[], options?: SpawnOpt
 		if (options?.onStdoutLine) {
 			const rl = createInterface({ input: proc.stdout });
 			rl.on("line", (line) => {
-				stdout += line + "\n";
-				options.onStdoutLine!(line);
+				stdout += `${line}\n`;
+				options.onStdoutLine?.(line);
 			});
 		} else {
 			proc.stdout.on("data", (chunk: Buffer) => {

@@ -5,7 +5,7 @@ export class EventWriter {
 	private fd: number;
 	private currentOffset: number;
 
-	constructor(private filePath: string) {
+	constructor(filePath: string) {
 		this.fd = openSync(filePath, "a");
 		this.currentOffset = statSync(filePath).size;
 	}
@@ -15,7 +15,7 @@ export class EventWriter {
 	 * Returns { offset, length } for the SQLite index.
 	 */
 	write(event: RecordedEvent): { offset: number; length: number } {
-		const line = JSON.stringify(event) + "\n";
+		const line = `${JSON.stringify(event)}\n`;
 		const bytes = Buffer.from(line, "utf-8");
 		const offset = this.currentOffset;
 

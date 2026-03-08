@@ -8,7 +8,7 @@ import type { BrowserSessionInfo, Marker, RecordedEvent } from "../types.js";
 import { BrowserDatabase } from "./database.js";
 import { EventWriter } from "./event-writer.js";
 import { NetworkExtractor } from "./network-extractor.js";
-import { RetentionConfigSchema, RetentionManager, type RetentionConfig } from "./retention.js";
+import { type RetentionConfig, RetentionConfigSchema, RetentionManager } from "./retention.js";
 import type { ScreenshotCapture } from "./screenshot.js";
 
 export const PersistenceConfigSchema = z.object({
@@ -46,7 +46,10 @@ export class PersistencePipeline {
 	private activeSessions = new Map<string, ActiveSession>();
 	private networkExtractor = new NetworkExtractor();
 
-	constructor(config: Partial<PersistenceConfig>, private screenshotCapture?: ScreenshotCapture) {
+	constructor(
+		config: Partial<PersistenceConfig>,
+		private screenshotCapture?: ScreenshotCapture,
+	) {
 		this.config = PersistenceConfigSchema.parse(config);
 		const dbPath = resolve(this.config.dataDir, "index.db");
 		mkdirSync(this.config.dataDir, { recursive: true });

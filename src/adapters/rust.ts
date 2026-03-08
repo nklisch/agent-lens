@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { access } from "node:fs/promises";
 import type { Socket } from "node:net";
 import { platform } from "node:os";
-import { basename, dirname, join, resolve as resolvePath } from "node:path";
+import { basename, join, resolve as resolvePath } from "node:path";
 import { promisify } from "node:util";
 import { getErrorMessage, LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";

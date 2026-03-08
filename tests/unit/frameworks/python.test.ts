@@ -5,7 +5,7 @@ describe("pytestDetector", () => {
 	it("detects 'pytest tests/'", () => {
 		const result = pytestDetector.detect("pytest tests/", "/p");
 		expect(result).not.toBeNull();
-		expect(result!.framework).toBe("pytest");
+		expect(result?.framework).toBe("pytest");
 	});
 
 	it("detects 'python -m pytest tests/test_order.py -x'", () => {
@@ -28,24 +28,24 @@ describe("pytestDetector", () => {
 
 	it("returns launchArgs object", () => {
 		const result = pytestDetector.detect("pytest tests/", "/p");
-		expect(result!.launchArgs).toBeDefined();
+		expect(result?.launchArgs).toBeDefined();
 	});
 
 	it("warns about pytest-xdist -n flag", () => {
 		const result = pytestDetector.detect("pytest -n4 tests/", "/p");
-		expect(result!.warnings.length).toBeGreaterThan(0);
-		expect(result!.warnings[0]).toContain("xdist");
+		expect(result?.warnings.length).toBeGreaterThan(0);
+		expect(result?.warnings[0]).toContain("xdist");
 	});
 
 	it("warns about --forked flag", () => {
 		const result = pytestDetector.detect("pytest --forked tests/", "/p");
-		expect(result!.warnings.length).toBeGreaterThan(0);
-		expect(result!.warnings[0]).toContain("forked");
+		expect(result?.warnings.length).toBeGreaterThan(0);
+		expect(result?.warnings[0]).toContain("forked");
 	});
 
 	it("no warnings for clean pytest command", () => {
 		const result = pytestDetector.detect("pytest tests/", "/p");
-		expect(result!.warnings).toHaveLength(0);
+		expect(result?.warnings).toHaveLength(0);
 	});
 });
 
@@ -53,7 +53,7 @@ describe("djangoDetector", () => {
 	it("detects 'python manage.py runserver'", () => {
 		const result = djangoDetector.detect("python manage.py runserver", "/p");
 		expect(result).not.toBeNull();
-		expect(result!.framework).toBe("django");
+		expect(result?.framework).toBe("django");
 	});
 
 	it("detects 'django-admin runserver'", () => {
@@ -67,26 +67,26 @@ describe("djangoDetector", () => {
 
 	it("appends --nothreading --noreload when neither present", () => {
 		const result = djangoDetector.detect("python manage.py runserver", "/p");
-		expect(result!.command).toContain("--nothreading");
-		expect(result!.command).toContain("--noreload");
+		expect(result?.command).toContain("--nothreading");
+		expect(result?.command).toContain("--noreload");
 	});
 
 	it("does not double-add --noreload", () => {
 		const result = djangoDetector.detect("python manage.py runserver --noreload", "/p");
-		const count = (result!.command ?? "python manage.py runserver --noreload").split("--noreload").length - 1;
+		const count = (result?.command ?? "python manage.py runserver --noreload").split("--noreload").length - 1;
 		expect(count).toBe(1);
 	});
 
 	it("does not double-add --nothreading", () => {
 		const result = djangoDetector.detect("python manage.py runserver --nothreading", "/p");
-		const cmd = result!.command ?? "python manage.py runserver --nothreading";
+		const cmd = result?.command ?? "python manage.py runserver --nothreading";
 		const count = cmd.split("--nothreading").length - 1;
 		expect(count).toBe(1);
 	});
 
 	it("sets PYTHONDONTWRITEBYTECODE env", () => {
 		const result = djangoDetector.detect("python manage.py runserver", "/p");
-		expect(result!.env).toMatchObject({ PYTHONDONTWRITEBYTECODE: "1" });
+		expect(result?.env).toMatchObject({ PYTHONDONTWRITEBYTECODE: "1" });
 	});
 });
 
@@ -94,7 +94,7 @@ describe("flaskDetector", () => {
 	it("detects 'flask run'", () => {
 		const result = flaskDetector.detect("flask run", "/p");
 		expect(result).not.toBeNull();
-		expect(result!.framework).toBe("flask");
+		expect(result?.framework).toBe("flask");
 	});
 
 	it("detects 'python -m flask run'", () => {
@@ -108,18 +108,18 @@ describe("flaskDetector", () => {
 
 	it("appends --no-reload", () => {
 		const result = flaskDetector.detect("flask run", "/p");
-		expect(result!.command).toContain("--no-reload");
+		expect(result?.command).toContain("--no-reload");
 	});
 
 	it("does not double-add --no-reload", () => {
 		const result = flaskDetector.detect("flask run --no-reload", "/p");
-		const cmd = result!.command ?? "flask run --no-reload";
+		const cmd = result?.command ?? "flask run --no-reload";
 		const count = cmd.split("--no-reload").length - 1;
 		expect(count).toBe(1);
 	});
 
 	it("sets WERKZEUG_RUN_MAIN env", () => {
 		const result = flaskDetector.detect("flask run", "/p");
-		expect(result!.env).toMatchObject({ WERKZEUG_RUN_MAIN: "true" });
+		expect(result?.env).toMatchObject({ WERKZEUG_RUN_MAIN: "true" });
 	});
 });

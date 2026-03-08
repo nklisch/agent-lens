@@ -157,10 +157,11 @@ export class SwiftAdapter implements DebugAdapter {
 		});
 
 		if (earlyError) throw earlyError;
+		if (!child.stdout || !child.stdin) throw new LaunchError("lldb-dap stdio not available");
 
 		return {
-			reader: child.stdout!,
-			writer: child.stdin!,
+			reader: child.stdout,
+			writer: child.stdin,
 			process: child,
 			launchArgs: {
 				_dapFlow: "launch-first",
@@ -204,10 +205,11 @@ export class SwiftAdapter implements DebugAdapter {
 		});
 
 		if (earlyError) throw earlyError;
+		if (!child.stdout || !child.stdin) throw new LaunchError("lldb-dap stdio not available");
 
 		return {
-			reader: child.stdout!,
-			writer: child.stdin!,
+			reader: child.stdout,
+			writer: child.stdin,
 			process: child,
 			launchArgs: {
 				request: "attach",
@@ -242,8 +244,8 @@ export function parseSwiftCommand(command: string): {
 		if (parts[i] === "run") {
 			i++;
 			// optional target name
-			const target = parts[i] && !parts[i]!.startsWith("-") ? parts[i]! : ".";
-			const afterTarget = parts[i] && !parts[i]!.startsWith("-") ? i + 1 : i;
+			const target = parts[i] && !(parts[i] as string).startsWith("-") ? (parts[i] as string) : ".";
+			const afterTarget = parts[i] && !(parts[i] as string).startsWith("-") ? i + 1 : i;
 			return { type: "spm", path: target, args: parts.slice(afterTarget) };
 		}
 		// bare "swift" — treat remainder as source

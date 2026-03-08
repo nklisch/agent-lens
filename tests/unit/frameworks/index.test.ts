@@ -9,19 +9,19 @@ describe("detectFramework", () => {
 	it("auto-detects pytest for python adapter", () => {
 		const result = detectFramework("pytest tests/", "python", "/project");
 		expect(result).not.toBeNull();
-		expect(result!.framework).toBe("pytest");
+		expect(result?.framework).toBe("pytest");
 	});
 
 	it("auto-detects jest for node adapter", () => {
 		const result = detectFramework("jest tests/", "node", "/project");
 		expect(result).not.toBeNull();
-		expect(result!.framework).toBe("jest");
+		expect(result?.framework).toBe("jest");
 	});
 
 	it("auto-detects go test for go adapter", () => {
 		const result = detectFramework("go test ./...", "go", "/project");
 		expect(result).not.toBeNull();
-		expect(result!.framework).toBe("gotest");
+		expect(result?.framework).toBe("gotest");
 	});
 
 	it("returns null for unknown commands", () => {
@@ -37,7 +37,7 @@ describe("detectFramework", () => {
 	it("forces specific framework by name", () => {
 		const result = detectFramework("pytest tests/", "python", "/project", "pytest");
 		expect(result).not.toBeNull();
-		expect(result!.framework).toBe("pytest");
+		expect(result?.framework).toBe("pytest");
 	});
 
 	it("returns null when explicit framework doesn't match command", () => {

@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { resolve as resolvePath } from "node:path";
 import { z } from "zod";
 import { getErrorMessage } from "./errors.js";
 import type { AttachOptions, LaunchOptions } from "./session-manager.js";

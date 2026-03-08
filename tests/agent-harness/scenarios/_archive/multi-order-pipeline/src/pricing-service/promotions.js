@@ -64,7 +64,7 @@ export function validateCoupon(code) {
 	if (sig !== expected) return 0;
 
 	const discountRate = parseFloat(rate);
-	if (isNaN(discountRate) || discountRate <= 0 || discountRate > 0.5) return 0;
+	if (Number.isNaN(discountRate) || discountRate <= 0 || discountRate > 0.5) return 0;
 
 	return discountRate;
 }

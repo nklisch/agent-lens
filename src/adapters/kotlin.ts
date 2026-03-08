@@ -2,11 +2,11 @@ import type { ChildProcess } from "node:child_process";
 import { exec, spawn } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, extname, join, resolve as resolvePath } from "node:path";
+import { basename, extname, join, resolve as resolvePath } from "node:path";
 import { promisify } from "node:util";
 import { getErrorMessage, LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { downloadError, downloadToFile, ensureAdapterCacheDir, getAdapterCacheDir, gracefulDispose } from "./helpers.js";
+import { downloadError, downloadToFile, getAdapterCacheDir, gracefulDispose } from "./helpers.js";
 
 const execAsync = promisify(exec);
 
@@ -258,10 +258,11 @@ export class KotlinAdapter implements DebugAdapter {
 		});
 
 		if (earlyError) throw earlyError;
+		if (!child.stdout || !child.stdin) throw new LaunchError("kotlin-debug-adapter stdio not available");
 
 		return {
-			reader: child.stdout!,
-			writer: child.stdin!,
+			reader: child.stdout,
+			writer: child.stdin,
 			process: child,
 			launchArgs: {
 				// KDA needs launch before setBreakpoints to trigger JVM resolution.
@@ -294,10 +295,11 @@ export class KotlinAdapter implements DebugAdapter {
 		});
 
 		this.adapterProcess = child;
+		if (!child.stdout || !child.stdin) throw new LaunchError("kotlin-debug-adapter stdio not available");
 
 		return {
-			reader: child.stdout!,
-			writer: child.stdin!,
+			reader: child.stdout,
+			writer: child.stdin,
 			process: child,
 			launchArgs: {
 				request: "attach",

@@ -1,4 +1,3 @@
-import type { EventRow } from "../storage/database.js";
 import type { QueryEngine } from "./query-engine.js";
 
 export interface DiffParams {

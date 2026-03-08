@@ -82,7 +82,7 @@ function parseClaudeStream(stdout: string): {
 							if (typeof block.content === "string") {
 								output = block.content;
 							} else if (Array.isArray(block.content)) {
-								const texts = (block.content as Array<{ type: string; text?: string }>).filter((c) => c.type === "text" && c.text).map((c) => c.text!);
+								const texts = (block.content as Array<{ type: string; text?: string }>).filter((c) => c.type === "text" && c.text).map((c) => c.text as string);
 								if (texts.length > 0) output = texts.join("\n");
 							}
 
@@ -201,7 +201,7 @@ const claudeCode: AgentDriver = {
 									} else if (Array.isArray(block.content)) {
 										output = (block.content as Array<{ type: string; text?: string }>)
 											.filter((c) => c.type === "text" && c.text)
-											.map((c) => c.text!)
+											.map((c) => c.text as string)
 											.join("\n");
 									}
 									const preview = output.slice(0, 200).replace(/\n/g, " ");

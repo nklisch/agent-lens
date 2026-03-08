@@ -264,7 +264,7 @@ export function parseCSharpCommand(command: string): {
 			i++;
 			// Check for --project flag
 			if (parts[i] === "--project" && parts[i + 1]) {
-				return { type: "project", path: parts[i + 1]!, args: parts.slice(i + 2) };
+				return { type: "project", path: parts[i + 1] as string, args: parts.slice(i + 2) };
 			}
 			return { type: "project", path: ".", args: parts.slice(i) };
 		}

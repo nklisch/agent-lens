@@ -60,7 +60,7 @@ export const djangoDetector: FrameworkDetector = {
 
 		if (flags.length > 0) {
 			modifiedCommand = `${command} ${flags.join(" ")}`;
-			warnings.push(`Added ${flags.join(", ")} for debugger compatibility. ` + "Django's auto-reloader and threading conflict with debugpy.");
+			warnings.push(`Added ${flags.join(", ")} for debugger compatibility. Django's auto-reloader and threading conflict with debugpy.`);
 		}
 
 		return {

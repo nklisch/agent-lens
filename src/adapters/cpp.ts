@@ -86,7 +86,6 @@ export class CppAdapter implements DebugAdapter {
 	displayName = "C/C++ (GDB)";
 
 	private gdbProcess: ChildProcess | null = null;
-	private useLldb = false;
 
 	/**
 	 * Check for GDB 14+ or lldb-dap availability.
@@ -199,10 +198,11 @@ export class CppAdapter implements DebugAdapter {
 		});
 
 		if (earlyError) throw earlyError;
+		if (!child.stdout || !child.stdin) throw new LaunchError(`${debuggerCmd} stdio not available`);
 
 		return {
-			reader: child.stdout!,
-			writer: child.stdin!,
+			reader: child.stdout,
+			writer: child.stdin,
 			process: child,
 			launchArgs: {
 				// GDB sends `initialized` immediately after `initialize`, so `launch`
@@ -221,7 +221,6 @@ export class CppAdapter implements DebugAdapter {
 	async attach(config: AttachConfig): Promise<DAPConnection> {
 		const gdbVersion = await checkGdbVersion();
 		const useGdb = gdbVersion >= MIN_GDB_VERSION;
-		this.useLldb = !useGdb;
 
 		const debuggerCmd = useGdb ? "gdb" : "lldb-dap";
 		const debuggerArgs = useGdb ? ["--interpreter=dap"] : [];
@@ -250,10 +249,11 @@ export class CppAdapter implements DebugAdapter {
 		});
 
 		if (earlyError) throw earlyError;
+		if (!child.stdout || !child.stdin) throw new LaunchError(`${debuggerCmd} stdio not available`);
 
 		return {
-			reader: child.stdout!,
-			writer: child.stdin!,
+			reader: child.stdout,
+			writer: child.stdin,
 			process: child,
 			launchArgs: {
 				request: "attach",

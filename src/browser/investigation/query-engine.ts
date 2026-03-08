@@ -90,7 +90,7 @@ export class QueryEngine {
 		// Resolve aroundMarker into a timeRange (only if no explicit timeRange provided)
 		if (params.filters?.aroundMarker && !params.filters.timeRange) {
 			const markers = this.db.queryMarkers(sessionId);
-			const marker = markers.find((m) => m.id === params.filters!.aroundMarker);
+			const marker = markers.find((m) => m.id === params.filters?.aroundMarker);
 			if (!marker) throw new Error(`Marker not found: ${params.filters.aroundMarker}`);
 			params = {
 				...params,
