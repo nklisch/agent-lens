@@ -54,9 +54,4 @@ export function compressionNote(actionCount: number, maxActions: number, tier: C
 	return `(compressed: action ${actionCount}/${maxActions}, use debug_variables for full locals)`;
 }
 
-/**
- * Estimate token count for a string (rough heuristic: chars / 4).
- */
-export function estimateTokens(text: string): number {
-	return Math.ceil(text.length / 4);
-}
+export { estimateTokens } from "./token-budget.js";

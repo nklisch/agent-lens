@@ -2,6 +2,9 @@ import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
+import { type PersistenceConfig, PersistencePipeline } from "../storage/persistence.js";
+import { RetentionConfigSchema, RetentionManager } from "../storage/retention.js";
+import { ScreenshotCapture, type ScreenshotConfig, ScreenshotConfigSchema } from "../storage/screenshot.js";
 import type { BrowserSessionInfo, Marker } from "../types.js";
 import type { DetectionRule } from "./auto-detect.js";
 import { AutoDetector, DEFAULT_DETECTION_RULES } from "./auto-detect.js";
@@ -26,6 +29,10 @@ export interface BrowserRecorderConfig {
 	buffer?: Partial<BufferConfig>;
 	/** Override detection rules. */
 	detectionRules?: DetectionRule[];
+	/** Persistence config. If absent, recordings are not persisted to disk. */
+	persistence?: PersistenceConfig;
+	/** Screenshot config. */
+	screenshots?: Partial<ScreenshotConfig>;
 }
 
 const DOMAINS_TO_ENABLE = [
@@ -91,6 +98,10 @@ export class BrowserRecorder {
 	private startedAt = 0;
 	private chromeProcess: ChildProcess | null = null;
 	private config: BrowserRecorderConfig;
+	private persistence: PersistencePipeline | null = null;
+	private screenshotCapture: ScreenshotCapture | null = null;
+	/** Map of targetId → CDP session ID for recording tabs. */
+	private tabSessions = new Map<string, string>();
 
 	constructor(config: BrowserRecorderConfig) {
 		this.config = config;
@@ -99,6 +110,23 @@ export class BrowserRecorder {
 		this.inputTracker = new InputTracker();
 		this.buffer = new RollingBuffer(BufferConfigSchema.parse(config.buffer ?? {}));
 		this.autoDetector = new AutoDetector(config.detectionRules ?? DEFAULT_DETECTION_RULES);
+
+		if (config.persistence) {
+			const bufferConfig = BufferConfigSchema.parse(config.buffer ?? {});
+			this.persistence = new PersistencePipeline({
+				dataDir: config.persistence.dataDir,
+				markerPaddingMs: config.persistence.markerPaddingMs ?? bufferConfig.markerPaddingMs,
+			});
+			this.screenshotCapture = new ScreenshotCapture(ScreenshotConfigSchema.parse(config.screenshots ?? {}));
+
+			// Run retention cleanup on startup
+			const retentionConfig = RetentionConfigSchema.parse({});
+			if (retentionConfig.cleanupOnStartup) {
+				const retention = new RetentionManager(retentionConfig);
+				const db = (this.persistence as unknown as { db: import("../storage/database.js").BrowserDatabase }).db;
+				retention.cleanup(db).catch(() => {});
+			}
+		}
 	}
 
 	/** Connect to Chrome and start recording. */
@@ -168,8 +196,18 @@ export class BrowserRecorder {
 	}
 
 	/** Place a marker at the current time. */
-	placeMarker(label?: string): Marker {
-		return this.buffer.placeMarker(label, false);
+	async placeMarker(label?: string): Promise<Marker> {
+		const marker = this.buffer.placeMarker(label, false);
+
+		if (this.persistence && this.cdpClient) {
+			const sessionInfo = this.getSessionInfo();
+			const tabSessionId = this.getPrimaryTabSessionId();
+			if (sessionInfo && tabSessionId) {
+				await this.persistence.onMarkerPlaced(marker, this.buffer, sessionInfo, this.cdpClient, tabSessionId);
+			}
+		}
+
+		return marker;
 	}
 
 	/** Get current session info, or null if not recording. */
@@ -186,6 +224,14 @@ export class BrowserRecorder {
 	/** Stop recording and disconnect. */
 	async stop(closeBrowser = false): Promise<void> {
 		this.recording = false;
+
+		if (this.screenshotCapture) {
+			this.screenshotCapture.stopPeriodic();
+		}
+
+		if (this.persistence) {
+			this.persistence.endSession(this.sessionId);
+		}
 
 		if (this.tabManager) {
 			for (const tab of this.tabManager.listRecordingTabs()) {
@@ -208,6 +254,7 @@ export class BrowserRecorder {
 		if (!this.cdpClient || !this.tabManager) return;
 
 		const sessionId = await this.tabManager.startRecording(targetId);
+		this.tabSessions.set(targetId, sessionId);
 
 		// Enable CDP domains for this tab session
 		for (const { domain, params } of DOMAINS_TO_ENABLE) {
@@ -220,6 +267,14 @@ export class BrowserRecorder {
 				source: this.inputTracker.getInjectionScript(),
 			})
 			.catch(() => {});
+
+		// Start periodic screenshot capture if configured
+		if (this.screenshotCapture && this.persistence) {
+			const sessionDir = this.persistence.getSessionDir(this.sessionId);
+			if (sessionDir) {
+				this.screenshotCapture.startPeriodic(this.cdpClient, sessionId, `${sessionDir}/screenshots`);
+			}
+		}
 	}
 
 	private async reattachToTabs(): Promise<void> {
@@ -249,11 +304,15 @@ export class BrowserRecorder {
 				const inputEvent = this.inputTracker.processInputEvent(args[1].value, tabId);
 				if (inputEvent) {
 					if (inputEvent.type === "marker") {
-						// Keyboard-triggered marker
-						this.buffer.placeMarker(inputEvent.data.label as string | undefined, false);
+						// Keyboard-triggered marker — fire-and-forget with persistence
+						void this.placeMarker(inputEvent.data.label as string | undefined);
 					} else {
 						this.buffer.push(inputEvent);
 						this.checkAutoDetect(inputEvent);
+						if (this.persistence) {
+							const sessionInfo = this.buildSessionInfo();
+							this.persistence.onNewEvent(inputEvent, sessionInfo);
+						}
 					}
 				}
 				return; // Don't pass __BL__ messages to normalizer
@@ -267,6 +326,21 @@ export class BrowserRecorder {
 		// Add to buffer
 		this.buffer.push(event);
 
+		// Persist if within an open marker window
+		if (this.persistence) {
+			const sessionInfo = this.buildSessionInfo();
+			this.persistence.onNewEvent(event, sessionInfo);
+		}
+
+		// Capture screenshot on navigation if configured
+		if (event.type === "navigation" && this.screenshotCapture && this.config.screenshots?.onNavigation !== false && this.cdpClient && this.persistence) {
+			const sessionDir = this.persistence.getSessionDir(this.sessionId);
+			const tabSessionId = this.getPrimaryTabSessionId();
+			if (sessionDir && tabSessionId) {
+				void this.screenshotCapture.capture(this.cdpClient, tabSessionId, `${sessionDir}/screenshots`).catch(() => {});
+			}
+		}
+
 		// Check auto-detection rules
 		this.checkAutoDetect(event);
 	}
@@ -275,8 +349,20 @@ export class BrowserRecorder {
 		const recentEvents = this.buffer.getEvents(event.timestamp - 5000, event.timestamp);
 		const markers = this.autoDetector.check(event, recentEvents);
 		for (const m of markers) {
-			this.buffer.placeMarker(m.label, true, m.severity);
+			const marker = this.buffer.placeMarker(m.label, true, m.severity);
+			if (this.persistence && this.cdpClient) {
+				const sessionInfo = this.buildSessionInfo();
+				const tabSessionId = this.getPrimaryTabSessionId();
+				if (tabSessionId) {
+					void this.persistence.onMarkerPlaced(marker, this.buffer, sessionInfo, this.cdpClient, tabSessionId).catch(() => {});
+				}
+			}
 		}
+	}
+
+	private getPrimaryTabSessionId(): string | null {
+		const [first] = this.tabSessions.values();
+		return first ?? null;
 	}
 
 	private buildSessionInfo(): BrowserSessionInfo {
