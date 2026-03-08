@@ -6,7 +6,7 @@
  */
 
 import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -28,7 +28,12 @@ const server = Bun.serve({
 		}
 
 		if (url.pathname === "/api/data" && req.method === "GET") {
-			return Response.json({ items: [{ id: 1, name: "Item A" }, { id: 2, name: "Item B" }] });
+			return Response.json({
+				items: [
+					{ id: 1, name: "Item A" },
+					{ id: 2, name: "Item B" },
+				],
+			});
 		}
 
 		if (url.pathname === "/api/submit" && req.method === "POST") {

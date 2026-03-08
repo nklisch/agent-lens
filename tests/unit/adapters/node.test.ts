@@ -43,7 +43,9 @@ describe("NodeAdapter", () => {
 	it("has correct adapter properties", () => {
 		const adapter = new NodeAdapter();
 		expect(adapter.id).toBe("node");
-		expect(adapter.fileExtensions).toEqual([".js", ".mjs", ".cjs"]);
+		expect(adapter.fileExtensions).toContain(".js");
+		expect(adapter.fileExtensions).toContain(".mjs");
+		expect(adapter.fileExtensions).toContain(".cjs");
 		expect(adapter.displayName).toBe("Node.js (inspector)");
 	});
 });

@@ -21,6 +21,7 @@ function frameworkDescription(): string {
 	const ids = listDetectors().map((d) => d.id);
 	return `Override framework auto-detection. Known: ${ids.join(", ")}. Use 'none' to disable.`;
 }
+
 import {
 	formatBreakpointsList,
 	formatBreakpointsSet,

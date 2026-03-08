@@ -59,8 +59,7 @@ tests/agent-harness/scenarios/
     "name": "python-float-accumulation",
     "language": "python",
     "description": "Bill splitting rounds shares independently; their sum can differ from the total by one cent",
-    "timeout_seconds": 300,
-    "level": 1
+    "timeout_seconds": 300
   },
   "setup": { "commands": [] },
   "visible_test": {
@@ -410,25 +409,21 @@ export default defineConfig({
 
 ---
 
-## Scenario Library (Current)
+## Active Scenarios
 
-22 scenarios across Python, Node.js, and TypeScript at levels 1–4. See `tests/agent-harness/scenarios/` for the full list. Examples:
+Three showcase scenarios — one per language. Each is designed so the debugger gives an immediate answer that source reading cannot. See [scenario-guidelines.md](scenario-guidelines.md) for design rules and selection criteria.
 
-### python-float-accumulation (L1)
+### python-class-attribute-shared
 
-Splitting a bill rounds each share independently; the sum can differ from the total by one cent. The visible test uses exact-division inputs. The prompt reports the specific amounts that fail.
+`items = []` declared on the class body is shared across all instances. Processing multiple customers in sequence accumulates prior customers' items. The bug is invisible in `__init__` — `self.items` looks like instance state until you inspect the object at runtime and see it's the same list.
 
-### python-class-attribute-shared (L1)
+### node-regex-lastindex
 
-`items = []` on the class body is shared across instances. Processing multiple customers in sequence accumulates prior customers' items. Visible test checks a single customer only.
+A `RegExp` compiled with the `g` flag has stateful `.lastIndex`. When reused across calls, `.test()` alternates between `true` and `false` for the same valid input. The source looks correct. Inspecting `regex.lastIndex` mid-execution reveals the state causing the flip.
 
-### python-billing-calc (L2)
+### ts-runtime-registry
 
-Two interacting bugs: a tier boundary off-by-one and sub-feature usage not being aggregated. Visible test uses inputs far from any boundary. Prompt reports the wrong invoice total with the specific line items affected.
-
-### node-event-ticketing (L4)
-
-Multiple bugs across pricing, seat inventory, and discount calculation. NaN total for surge events, VIP seats incorrectly unavailable, early-bird discount nearly zero. Visible test only exercises the basic checkout control path.
+A dependency injection container builds service keys by hashing `name + variant`. One service declares a dependency using the wrong variant string, producing a hash that matches nothing in the registry. You cannot determine the hash output from source — a breakpoint at key comparison and variable inspection reveals both the expected and actual key values.
 
 ---
 
@@ -487,9 +482,7 @@ tests/agent-harness/
 
 4. **Cost tracking.** Claude Code reports cost via `--output-format stream-json`. Should the harness parse this and enforce budget limits, or just rely on `--max-budget-usd`? Leaning toward the latter — let the agent enforce its own budget.
 
-5. **Scenario difficulty levels.** Should we tag scenarios by difficulty (smoke / standard / hard) so developers can run a quick smoke test without burning through the full suite?
-
-6. **Multi-file bugs.** Some real bugs span multiple files. The scenario structure supports this (entire `src/` directory is copied), but do we need any special handling for the prompt to orient the agent?
+5. **Multi-file bugs.** Some real bugs span multiple files. The scenario structure supports this (entire `src/` directory is copied), but do we need any special handling for the prompt to orient the agent?
 
 ---
 
@@ -669,6 +662,6 @@ This gives us a clean patch showing exactly what the agent modified, perfect for
 
 - **Testing without agent-lens.** ~~We don't run scenarios without agent-lens to establish a baseline.~~ *Update: baseline runs are now implemented — see [with-without-comparison.md](with-without-comparison.md).*
 
-- **Covering every language.** Start with Python and Node.js. Add languages as agent-lens gains adapter support. The harness itself is language-agnostic — new languages are just new scenario directories.
+- **Covering every language.** The active suite has Python, Node, and TypeScript. New languages can be added as adapters mature — the harness is language-agnostic, new languages are just new scenario directories.
 
-- **Complex real-world codebases.** Scenarios should be small, focused, and deterministic. A 500-line file with a subtle concurrency bug is a benchmark, not a test.
+- **Complex real-world codebases.** Scenarios are small and focused by design (2–4 files, 100–300 lines). The goal is a clean debugger demonstration, not a comprehensive codebase investigation.

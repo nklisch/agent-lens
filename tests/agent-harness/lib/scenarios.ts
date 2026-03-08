@@ -17,12 +17,10 @@ async function loadScenario(dir: string): Promise<Scenario> {
 		name: config.scenario.name,
 		description: config.scenario.description,
 		language: config.scenario.language,
-		level: config.scenario.level,
 		timeoutSeconds: config.scenario.timeout_seconds,
 		setupCommands: config.setup.commands,
 		visibleTestCommand: config.visible_test.command,
 		validationCommand: config.validation.command,
-		services: config.services,
 		scenarioDir: dir,
 		srcDir: join(dir, "src"),
 		hiddenDir: join(dir, "hidden"),
@@ -40,6 +38,7 @@ export async function discoverScenarios(): Promise<Scenario[]> {
 	const scenarios: Scenario[] = [];
 	for (const entry of entries) {
 		if (!entry.isDirectory()) continue;
+		if (entry.name.startsWith("_")) continue;
 		if (filter && entry.name !== filter) continue;
 
 		const dir = join(SCENARIOS_DIR, entry.name);

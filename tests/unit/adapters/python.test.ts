@@ -30,7 +30,7 @@ describe("parseCommand", () => {
 	it("parses 'python -c \"code\"'", () => {
 		const result = parseCommand('python -c "import sys; print(sys.path)"');
 		expect(result.script).toBe("-c");
-		expect(result.args).toEqual(['"import', "sys;", "print(sys.path)\""]);
+		expect(result.args).toEqual(['"import', "sys;", 'print(sys.path)"']);
 	});
 
 	it("parses 'python3 -c code'", () => {

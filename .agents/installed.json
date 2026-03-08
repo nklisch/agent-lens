@@ -191,27 +191,6 @@
 			}
 		},
 		{
-			"name": "quality-gate",
-			"description": "\"Final quality assessment for a feature or phase. Use when checking if work is complete enough to move on.\"",
-			"repo": "https://github.com/nklisch/skills.git",
-			"ref": null,
-			"sha": "36519b91d3df406eec10d275459c9fea0b200e6f",
-			"scope": "project",
-			"path": ".agents/skills/quality-gate",
-			"tap": "skills",
-			"also": ["claude-code"],
-			"installedAt": "2026-03-04T08:14:24.884Z",
-			"updatedAt": "2026-03-04T08:14:24.884Z",
-			"trust": {
-				"tier": "publisher",
-				"publisher": {
-					"name": "nklisch",
-					"platform": "github"
-				},
-				"tap": "skills"
-			}
-		},
-		{
 			"name": "zod-v4",
 			"description": "Zod v4 validation library reference. Auto-loads when working with Zod schemas, validation, z.object, z.string, z.infer, safeParse, transforms, discriminatedUnion.",
 			"repo": "https://github.com/nklisch/skills.git",

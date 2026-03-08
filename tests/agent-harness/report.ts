@@ -31,7 +31,6 @@ interface ReportResult {
 	agent: string;
 	/** Run mode — "tools" or "baseline". Old results without mode default to "tools". */
 	mode: RunMode;
-	level: number;
 	passed: boolean;
 	durationMs: number;
 	timedOut: boolean;
@@ -67,7 +66,6 @@ interface ScenarioInfo {
 	name: string;
 	description: string;
 	language: string;
-	level: number;
 }
 
 interface Report {
@@ -197,7 +195,6 @@ function slimResult(r: RunResult): ReportResult {
 		scenario: r.scenario,
 		agent: r.agent,
 		mode: r.mode ?? "mcp",
-		level: r.scenarioMeta?.level ?? 0,
 		passed: r.passed,
 		durationMs: r.durationMs,
 		timedOut: r.timedOut,
@@ -254,11 +251,10 @@ function buildScenarioList(results: RunResult[]): ScenarioInfo[] {
 				name: r.scenario,
 				description: r.scenarioMeta?.description ?? "",
 				language: fmtLanguage(r.scenarioMeta?.language),
-				level: r.scenarioMeta?.level ?? 0,
 			});
 		}
 	}
-	return [...seen.values()].sort((a, b) => a.level - b.level || a.language.localeCompare(b.language) || a.name.localeCompare(b.name));
+	return [...seen.values()].sort((a, b) => a.language.localeCompare(b.language) || a.name.localeCompare(b.name));
 }
 
 function generateReport(results: RunResult[], suiteId: string): Report {
@@ -402,58 +398,13 @@ function generateMarkdown(report: Report): string {
 	const modeOrder: Record<string, number> = { baseline: 0, cli: 1, mcp: 2 };
 	modesPresent.sort((a, b) => (modeOrder[a] ?? 99) - (modeOrder[b] ?? 99));
 
-	// By-level pass rate breakdown
-	const levelNums = [1, 2, 3, 4, 5, 6, 7];
-	const levelHasData = levelNums.some((l) => report.results.some((r) => r.level === l));
-	if (levelHasData) {
-		lines.push("## Pass Rate by Level");
-		lines.push("");
-		const levelNames: Record<number, string> = {
-			1: "Read the Code",
-			2: "Run and Trace",
-			3: "Inspect Runtime State",
-			4: "Multi-Component",
-			5: "Subtle / Adversarial",
-			6: "Adversarial",
-			7: "Cross-Language",
-		};
-		if (withModes && modesPresent.length > 1) {
-			const modeHeaders = modesPresent.join(" | ");
-			const modeSep = modesPresent.map(() => "---").join(" | ");
-			lines.push(`| Level | ${modeHeaders} |`);
-			lines.push(`|-------|${modeSep}|`);
-			for (const l of levelNums) {
-				const levelResults = report.results.filter((r) => r.level === l);
-				if (levelResults.length === 0) continue;
-				const cells = modesPresent.map((m) => {
-					const modeResults = levelResults.filter((r) => (r.mode ?? "mcp") === m);
-					if (modeResults.length === 0) return "—";
-					const p = modeResults.filter((r) => r.passed).length;
-					return `${Math.round((p / modeResults.length) * 100)}% (${p}/${modeResults.length})`;
-				});
-				lines.push(`| L${l} ${levelNames[l]} | ${cells.join(" | ")} |`);
-			}
-		} else {
-			lines.push("| Level | Scenarios | Passed | Pass Rate |");
-			lines.push("|-------|-----------|--------|-----------|");
-			for (const l of levelNums) {
-				const levelResults = report.results.filter((r) => r.level === l);
-				if (levelResults.length === 0) continue;
-				const p = levelResults.filter((r) => r.passed).length;
-				lines.push(`| L${l} ${levelNames[l]} | ${levelResults.length} | ${p} | ${Math.round((p / levelResults.length) * 100)}% |`);
-			}
-		}
-		lines.push("");
-	}
-
 	// Per-scenario results
 	lines.push("## Results");
 	lines.push("");
 
 	for (const scenario of report.scenarios) {
 		const scenarioResults = report.results.filter((r) => r.scenario === scenario.name);
-		const levelTag = scenario.level ? `L${scenario.level}` : "";
-		lines.push(`### ${levelTag ? `${levelTag} — ` : ""}${scenario.name}`);
+		lines.push(`### ${scenario.name}`);
 		lines.push(`*${scenario.language} — ${scenario.description}*`);
 		lines.push("");
 

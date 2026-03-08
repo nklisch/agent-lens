@@ -1,4 +1,5 @@
 import type { DebugAdapter } from "./base.js";
+import { BunAdapter } from "./bun.js";
 import { CppAdapter } from "./cpp.js";
 import { CSharpAdapter } from "./csharp.js";
 import { GoAdapter } from "./go.js";
@@ -38,6 +39,7 @@ export function getAdapterForFile(filePath: string): DebugAdapter | undefined {
 export function registerAllAdapters(): void {
 	registerAdapter(new PythonAdapter());
 	registerAdapter(new NodeAdapter());
+	registerAdapter(new BunAdapter());
 	registerAdapter(new GoAdapter());
 	registerAdapter(new RustAdapter());
 	registerAdapter(new JavaAdapter());

@@ -3,8 +3,7 @@
 		"name": "node-regex-lastindex",
 		"language": "node",
 		"description": "A RegExp with the g flag has stateful .lastIndex, causing .test() to alternate between true and false for the same valid input",
-		"timeout_seconds": 300,
-		"level": 1
+		"timeout_seconds": 300
 	},
 	"setup": {
 		"commands": []

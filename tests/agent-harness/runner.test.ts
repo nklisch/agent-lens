@@ -18,8 +18,6 @@
  *   AGENT=claude-code bun run test:agent                                # one agent
  *   SCENARIO=python-discount-bug bun run test:agent                     # one scenario
  *   RUN_MODE=mcp bun run test:agent                                     # one mode only
- *   LEVEL=1 bun run test:agent                                          # one difficulty level
- *   LEVEL=1,2 bun run test:agent                                        # multiple levels
  *   AGENT=claude-code SCENARIO=python-discount-bug RUN_MODE=mcp bun run test:agent
  *   TRACE_DIR=./results bun run test:agent                              # custom output dir
  *
@@ -40,15 +38,7 @@ import { initSuiteDir, writeSuiteMeta } from "./lib/trace.js";
 const allScenarios: Scenario[] = await discoverScenarios();
 const agents: AgentDriver[] = await discoverAgents();
 
-// Level filter — LEVEL=1 or LEVEL=1,2 to scope by difficulty
-const levelFilter = process.env.LEVEL;
-const scenarios: Scenario[] = levelFilter
-	? allScenarios.filter((s) => levelFilter.split(",").map(Number).includes(s.level))
-	: allScenarios;
-
-if (levelFilter && scenarios.length === 0) {
-	throw new Error(`LEVEL="${levelFilter}" matched no scenarios. Available levels: ${[...new Set(allScenarios.map((s) => s.level))].sort().join(", ")}`);
-}
+const scenarios: Scenario[] = allScenarios;
 
 // Mode selection — baseline runs first, then cli, then mcp.
 // Configurable via MODE env var (comma-separated); defaults to all three modes.
@@ -70,8 +60,7 @@ beforeAll(async () => {
 		agents: agents.map((a) => a.name),
 		modes,
 	});
-	const levelSummary = levelFilter ? `  Levels: ${levelFilter}` : "";
-	console.log(`[agent-harness] Modes: ${modes.join(", ")}${levelSummary}  Scenarios: ${scenarios.length}  Traces → ${suiteDir}`);
+	console.log(`[agent-harness] Modes: ${modes.join(", ")}  Scenarios: ${scenarios.length}  Traces → ${suiteDir}`);
 });
 
 afterAll(() => {
@@ -79,7 +68,7 @@ afterAll(() => {
 });
 
 describe.each(agents)("Agent: $name", (agent) => {
-	describe.each(scenarios)("Scenario: $name (L$level)", (scenario) => {
+	describe.each(scenarios)("Scenario: $name", (scenario) => {
 		describe.each(modes)("Mode: %s", (mode) => {
 			it(
 				"fixes the bug (hidden test passes)",

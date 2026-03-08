@@ -1,4 +1,4 @@
-import { appendFile, chmod, cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { appendFile, chmod, cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { AgentDriver, AgentRunResult, RunMode, RunResult, Scenario, ValidationResult, Workspace } from "./config.js";
@@ -252,7 +252,6 @@ export async function runScenario(agent: AgentDriver, scenario: Scenario, traceD
 		scenarioMeta: {
 			description: scenario.description,
 			language: scenario.language,
-			level: scenario.level,
 		},
 		agent: agent.name,
 		timestamp,

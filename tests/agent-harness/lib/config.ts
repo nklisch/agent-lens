@@ -15,21 +15,10 @@ export type RunMode = "mcp" | "cli" | "baseline";
 export const ScenarioConfigSchema = z.object({
 	scenario: z.object({
 		name: z.string(),
-		language: z.union([z.string(), z.array(z.string())]),
+		language: z.string(),
 		description: z.string(),
 		timeout_seconds: z.number(),
-		level: z.number().int().min(1).max(7),
 	}),
-	services: z
-		.array(
-			z.object({
-				name: z.string(),
-				language: z.string(),
-				dir: z.string(),
-				port: z.number().optional(),
-			}),
-		)
-		.optional(),
 	setup: z
 		.object({
 			commands: z.array(z.string()).default([]),
@@ -52,12 +41,8 @@ export interface Scenario {
 	name: string;
 	/** Human description */
 	description: string;
-	/** Primary language or languages ("python", "node", "go", or ["python", "node", "go"]) */
-	language: string | string[];
-	/** Difficulty level 1–7 */
-	level: number;
-	/** Service descriptions for multi-language scenarios (informational) */
-	services?: Array<{ name: string; language: string; dir: string; port?: number }>;
+	/** Language ("python", "node", "typescript", "go", "rust", "cpp", "java") */
+	language: string;
 	/** Timeout in seconds for the agent run */
 	timeoutSeconds: number;
 	/** Setup commands to run before the agent starts */
@@ -171,8 +156,7 @@ export interface RunResult {
 	/** Scenario metadata for self-contained reports */
 	scenarioMeta: {
 		description: string;
-		language: string | string[];
-		level: number;
+		language: string;
 	};
 	/** Agent name */
 	agent: string;

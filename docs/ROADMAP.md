@@ -522,6 +522,84 @@ Community or first-party adapters for:
 
 ---
 
+## Phase 8: Additional Language Adapters
+
+**Goal:** Ruby, C#, Swift, and Kotlin adapters extend Agent Lens to cover the remaining major language ecosystems.
+
+→ designs/phase-8-ruby-csharp-swift-kotlin.md
+
+---
+
+## Phase 9: Browser Lens — CDP Recorder
+
+**Goal:** Agent Lens gains passive browser recording. A daemon connects to Chrome via CDP, captures network, console, DOM, and user input events into a rolling buffer, and persists evidence around user-placed markers. The human drives the browser; the system records everything.
+
+**Design focus:** CDP connection lifecycle, event normalization, rolling buffer with marker-triggered persistence, input tracking via minimal page injection, auto-detection of anomalies (4xx/5xx, unhandled exceptions).
+
+→ designs/phase-9-browser-cdp-recorder.md
+
+### 9.1 — CDP Connection Manager
+### 9.2 — Event Normalization Pipeline
+### 9.3 — Rolling Buffer
+### 9.4 — User Input Tracker
+### 9.5 — Marker System (CLI + Hotkey + Auto-detect)
+### 9.6 — Browser Launch Wrapper
+### 9.7 — Integration Test Suite
+
+---
+
+## Phase 10: Browser Lens — Storage & Persistence
+
+**Goal:** Marker-triggered persistence writes browser session evidence to disk. SQLite indexes events for fast investigation queries. Network response bodies and screenshots are stored separately for on-demand loading.
+
+**Design focus:** SQLite schema design, JSONL append-only event storage, byte-offset references for random access, marker-triggered flush pipeline, screenshot capture, token budget utility extraction.
+
+→ designs/phase-10-browser-storage.md
+
+### 10.1 — SQLite Schema & JSONL Storage
+### 10.2 — Marker-Triggered Persistence Pipeline
+### 10.3 — Network Body Extraction & Storage
+### 10.4 — Screenshot Capture
+### 10.5 — Retention & Cleanup Policies
+### 10.6 — Token Budget Utility Extraction
+
+---
+
+## Phase 11: Browser Lens — Investigation MCP Tools
+
+**Goal:** Agents can investigate recorded browser sessions through 4 MCP tools: list sessions, get overviews, search events, and inspect specific moments. Token-budgeted renderers present evidence compactly.
+
+**Design focus:** MCP tool schemas alongside existing debug_* tools, browser-specific viewport renderers with token budgeting, FTS5 full-text search across event summaries and network bodies, CLI investigation commands.
+
+→ designs/phase-11-browser-investigation-tools.md
+
+### 11.1 — session_list Tool
+### 11.2 — session_overview Tool
+### 11.3 — session_search Tool
+### 11.4 — session_inspect Tool
+### 11.5 — Browser Viewport Renderers
+### 11.6 — CLI Investigation Commands
+### 11.7 — Investigation E2E Tests
+
+---
+
+## Phase 12: Browser Lens — Intelligence
+
+**Goal:** Advanced investigation tools: diff two moments in a session, generate reproduction contexts and test scaffolds, smart auto-detection rules, and HAR export for interop with existing tools.
+
+**Design focus:** Session diff algorithm, reproduction step generation, test scaffold templates (Playwright/Cypress), expanded auto-detection heuristics, SKILL.md for coding agents.
+
+→ designs/phase-12-browser-intelligence.md
+
+### 12.1 — session_diff Tool
+### 12.2 — session_replay_context Tool
+### 12.3 — Smart Auto-Detection Rules
+### 12.4 — Test Scaffold Generation
+### 12.5 — HAR Export
+### 12.6 — Browser Lens SKILL.md
+
+---
+
 ## Dependency Graph
 
 ```
@@ -537,10 +615,22 @@ Phase 1: Core Debug Loop
                     │
                     ├── Phase 6: Framework Detection (needs multi-lang)
                     │
-                    └── Phase 7: Ecosystem (needs everything stable)
+                    ├── Phase 7: Ecosystem (needs everything stable)
+                    │
+                    └── Phase 8: Additional Language Adapters
+                            │
+                            └── Phase 9: Browser CDP Recorder
+                                    │
+                                    └── Phase 10: Browser Storage
+                                            │
+                                            └── Phase 11: Browser Investigation Tools
+                                                    │
+                                                    └── Phase 12: Browser Intelligence
 ```
 
-Phases 2 and 3 can run in parallel after Phase 1. Phases 5, 6, and 7 can run in parallel after Phase 4.
+Phases 2 and 3 can run in parallel after Phase 1. Phases 5, 6, 7, and 8 can run in parallel after Phase 4.
+Phases 9–12 are sequential (each builds on the previous). Phase 9 can start after Phase 7 (stable ecosystem)
+but has no dependency on Phase 8 (additional language adapters).
 
 ---
 
@@ -556,3 +646,9 @@ Decisions made during roadmap planning, for reference:
 | Progressive compression tiers | 4 tiers at 20/50/100 actions | Matches typical debug session lengths, leaves room for override |
 | Framework detection phase | Phase 6 (late) | Nice-to-have, not core. Agents can configure manually until then |
 | Adapter SDK phase | Phase 7 (last) | Need stable adapter contract first. Community contributions depend on this |
+| Browser Lens integration | Unified Lens (Option A) | Single MCP server with both debug_* and session_* tools. Shared infra, independent lifecycles |
+| Browser adapter interface | Separate subsystem, not DebugAdapter | CDP recording is passive timeline, not interactive DAP. Different enough to warrant its own module |
+| Browser viewport engine | Separate renderers, shared token-budget utility | Don't generalize renderViewport(). Extract estimateTokens + fitToBudget to core/token-budget.ts |
+| Browser storage | SQLite + JSONL with byte-offset references | SQLite for queries, JSONL for raw events, byte offsets for O(1) event lookup |
+| Browser data location | ~/.agent-lens/browser/ | Lives under agent-lens, not separate ~/.browser-lens/ |
+| Input tracking approach | console.debug('__BL__', ...) | Piggybacks on Runtime.consoleAPICalled, no separate polling mechanism |
