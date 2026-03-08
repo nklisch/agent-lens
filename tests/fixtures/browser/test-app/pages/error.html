@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Error Page</title></head>
+<body>
+	<h1>Error Test Page</h1>
+	<button id="throw-btn" data-testid="throw-btn">Throw Exception</button>
+	<button id="null-btn" data-testid="null-btn">Null Reference</button>
+	<button id="promise-btn" data-testid="promise-btn">Unhandled Promise Rejection</button>
+	<div id="output" data-testid="output"></div>
+	<script src="/static/app.js"></script>
+	<script>
+		document.getElementById('throw-btn').addEventListener('click', () => {
+			console.log('About to throw exception');
+			throw new Error('User triggered exception from error page');
+		});
+
+		document.getElementById('null-btn').addEventListener('click', () => {
+			console.log('About to access null property');
+			const obj = null;
+			// This will throw TypeError: Cannot read properties of null
+			document.getElementById('output').textContent = obj.name;
+		});
+
+		document.getElementById('promise-btn').addEventListener('click', () => {
+			console.log('About to reject promise');
+			Promise.reject(new Error('Unhandled promise rejection test'));
+		});
+	</script>
+</body>
+</html>

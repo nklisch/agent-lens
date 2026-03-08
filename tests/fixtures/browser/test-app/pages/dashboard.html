@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Dashboard</title></head>
+<body>
+	<h1>Dashboard</h1>
+	<div id="stats" data-testid="stats"></div>
+	<div id="orders" data-testid="orders"></div>
+	<div id="ticker" data-testid="ticker"></div>
+	<button id="refresh-btn" data-testid="refresh-btn">Refresh</button>
+	<a href="/settings" data-testid="nav-settings">Settings</a>
+	<div id="output" data-testid="output"></div>
+	<script src="/static/app.js"></script>
+	<script>
+		async function loadDashboard() {
+			const token = localStorage.getItem('auth_token');
+			if (!token) {
+				console.warn('No auth token found, redirecting to login');
+				window.location.href = '/login';
+				return;
+			}
+			try {
+				const resp = await fetch('/api/dashboard', {
+					headers: { 'Authorization': 'Bearer ' + token }
+				});
+				const data = await resp.json();
+				document.getElementById('stats').textContent = JSON.stringify(data.stats);
+				const orderHtml = data.recentOrders.map(o =>
+					'<div class="order">' + o.id + ': ' + o.customer + ' - $' + o.total + ' (' + o.status + ')</div>'
+				).join('');
+				document.getElementById('orders').innerHTML = orderHtml;
+				console.log('Dashboard loaded:', data.stats);
+			} catch (err) {
+				document.getElementById('output').textContent = 'Failed to load dashboard';
+				console.error('Dashboard load failed:', err);
+			}
+		}
+
+		// WebSocket ticker
+		function connectTicker() {
+			const ws = new WebSocket('ws://' + window.location.host + '/ws/ticker');
+			ws.onopen = () => console.log('Ticker connected');
+			ws.onmessage = (e) => {
+				document.getElementById('ticker').textContent = 'Ticker: ' + e.data;
+			};
+			ws.onerror = (e) => console.error('Ticker error:', e);
+			ws.onclose = (e) => {
+				console.warn('Ticker disconnected:', e.code, e.reason);
+				document.getElementById('ticker').textContent = 'Ticker: disconnected';
+			};
+		}
+
+		document.getElementById('refresh-btn').addEventListener('click', loadDashboard);
+
+		loadDashboard();
+		connectTicker();
+	</script>
+</body>
+</html>

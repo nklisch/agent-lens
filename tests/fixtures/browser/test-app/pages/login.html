@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Login</title></head>
+<body>
+	<h1>Login</h1>
+	<form id="login-form">
+		<label for="username">Username</label>
+		<input id="username" name="username" type="text" data-testid="username" />
+		<label for="password">Password</label>
+		<input id="password" name="password" type="password" data-testid="password" />
+		<button type="submit" data-testid="login-btn">Login</button>
+	</form>
+	<div id="output" data-testid="output"></div>
+	<script src="/static/app.js"></script>
+	<script>
+		document.getElementById('login-form').addEventListener('submit', async (e) => {
+			e.preventDefault();
+			const username = document.getElementById('username').value;
+			const password = document.getElementById('password').value;
+			const output = document.getElementById('output');
+			try {
+				const resp = await fetch('/api/login', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ username, password })
+				});
+				const data = await resp.json();
+				if (!resp.ok) {
+					output.textContent = 'Error: ' + data.error;
+					console.error('Login failed:', data.error);
+					return;
+				}
+				localStorage.setItem('auth_token', data.token);
+				localStorage.setItem('user_name', data.user.name);
+				output.textContent = 'Logged in as ' + data.user.name;
+				console.log('Login successful for', data.user.name);
+				// Navigate to dashboard after login
+				setTimeout(() => { window.location.href = '/dashboard'; }, 500);
+			} catch (err) {
+				output.textContent = 'Network error';
+				console.error('Login request failed:', err);
+			}
+		});
+	</script>
+</body>
+</html>

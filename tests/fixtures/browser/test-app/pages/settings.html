@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Settings</title></head>
+<body>
+	<h1>Settings</h1>
+	<form id="settings-form">
+		<label for="name">Display Name</label>
+		<input id="name" name="name" type="text" data-testid="name" />
+		<label for="email">Email</label>
+		<input id="email" name="email" type="email" data-testid="email" />
+		<label for="phone">Phone</label>
+		<input id="phone" name="phone" type="text" data-testid="phone" />
+		<button type="submit" data-testid="save-btn">Save Changes</button>
+	</form>
+	<div id="output" data-testid="output"></div>
+	<script src="/static/app.js"></script>
+	<script>
+		// Pre-fill from localStorage
+		const name = localStorage.getItem('user_name') || '';
+		document.getElementById('name').value = name;
+
+		document.getElementById('settings-form').addEventListener('submit', async (e) => {
+			e.preventDefault();
+			const formData = {
+				name: document.getElementById('name').value,
+				email: document.getElementById('email').value,
+				phone: document.getElementById('phone').value,
+			};
+			const output = document.getElementById('output');
+			try {
+				const resp = await fetch('/api/settings', {
+					method: 'PUT',
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': 'Bearer ' + localStorage.getItem('auth_token'),
+					},
+					body: JSON.stringify(formData),
+				});
+				const data = await resp.json();
+				if (!resp.ok) {
+					output.textContent = 'Error: ' + data.error;
+					console.error('Settings save failed:', data.error, data.details);
+					return;
+				}
+				localStorage.setItem('user_name', formData.name);
+				localStorage.setItem('user_email', formData.email);
+				output.textContent = 'Settings saved successfully';
+				console.log('Settings updated:', formData);
+			} catch (err) {
+				output.textContent = 'Network error';
+				console.error('Settings request failed:', err);
+			}
+		});
+	</script>
+</body>
+</html>

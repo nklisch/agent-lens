@@ -1,3 +1,4 @@
+import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -24,7 +25,8 @@ registerTools(server, sessionManager);
 
 // Browser investigation tools — instantiate QueryEngine pointing at the shared database.
 // BrowserDatabase creates the file and schema if it doesn't exist, so this is always safe.
-const browserDataDir = resolve(homedir(), ".agent-lens", "browser");
+const browserDataDir = process.env.AGENT_LENS_BROWSER_DATA_DIR ?? resolve(homedir(), ".agent-lens", "browser");
+mkdirSync(browserDataDir, { recursive: true });
 const browserDb = new BrowserDatabase(resolve(browserDataDir, "index.db"));
 const browserQueryEngine = new QueryEngine(browserDb, browserDataDir);
 registerBrowserTools(server, browserQueryEngine);
