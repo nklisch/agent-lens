@@ -73,6 +73,42 @@ describe("InputTracker CLS processing", () => {
 		});
 	});
 
+	describe("getInjectionScript — storage proxy", () => {
+		it("includes localStorage proxy", () => {
+			const script = tracker.getInjectionScript();
+			expect(script).toContain("localStorage");
+			expect(script).toContain("setItem");
+			expect(script).toContain("removeItem");
+		});
+
+		it("includes sessionStorage proxy", () => {
+			expect(tracker.getInjectionScript()).toContain("sessionStorage");
+		});
+
+		it("reports storage events via the report function", () => {
+			expect(tracker.getInjectionScript()).toContain("report('storage'");
+		});
+	});
+
+	describe("getInjectionScript — MutationObserver", () => {
+		it("includes MutationObserver", () => {
+			expect(tracker.getInjectionScript()).toContain("MutationObserver");
+		});
+
+		it("uses childList with subtree", () => {
+			expect(tracker.getInjectionScript()).toContain("childList");
+			expect(tracker.getInjectionScript()).toContain("subtree");
+		});
+
+		it("reports dom_mutation events via the report function", () => {
+			expect(tracker.getInjectionScript()).toContain("report('dom_mutation'");
+		});
+
+		it("uses 500ms debounce timer", () => {
+			expect(tracker.getInjectionScript()).toContain("setTimeout(flush, 500)");
+		});
+	});
+
 	describe("existing input events are unchanged", () => {
 		it("still processes click events", () => {
 			const data = JSON.stringify({ type: "click", ts: Date.now(), selector: "#btn", text: "OK", tag: "button" });

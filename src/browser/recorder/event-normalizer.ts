@@ -41,6 +41,11 @@ export class EventNormalizer {
 				return this.normalizeLoadEvent(tabId);
 			case "Performance.metrics":
 				return this.normalizePerformance(params, tabId);
+			// Note: storage_change and dom_mutation events are captured via the __BL__
+			// injection mechanism (InputTracker), not via CDP domain events. This is because:
+			// - DOMStorage domain has cross-frame limitations and requires an additional CDP domain
+			// - MutationObserver cannot be observed from CDP directly
+			// See src/browser/recorder/input-tracker.ts for the injected scripts.
 			default:
 				return null;
 		}
