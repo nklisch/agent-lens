@@ -410,6 +410,7 @@ export class DaemonServer {
 					profile: p.profile,
 					allTabs: p.allTabs,
 					tabFilter: p.tabFilter,
+					url: p.url,
 				});
 				return this.browserRecorder.start();
 			}

@@ -250,6 +250,7 @@ export const BrowserStartParamsSchema = z.object({
 	attach: z.boolean().default(false),
 	allTabs: z.boolean().default(false),
 	tabFilter: z.string().optional(),
+	url: z.string().optional(),
 });
 export type BrowserStartParams = z.infer<typeof BrowserStartParamsSchema>;
 

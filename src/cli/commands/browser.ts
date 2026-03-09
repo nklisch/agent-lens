@@ -46,8 +46,12 @@ export const browserStartCommand = defineCommand({
 		},
 		attach: {
 			type: "boolean",
-			description: "Attach to an already-running Chrome instance (don't launch Chrome)",
+			description: "Attach to an already-running Chrome instance (don't launch Chrome). Chrome must have been started with --remote-debugging-port=9222",
 			default: false,
+		},
+		url: {
+			type: "string",
+			description: "URL to open when launching Chrome (ignored with --attach)",
 		},
 		"all-tabs": {
 			type: "boolean",
@@ -68,6 +72,7 @@ export const browserStartCommand = defineCommand({
 				attach: args.attach,
 				allTabs: args["all-tabs"],
 				tabFilter: args.tab,
+				url: args.url,
 			});
 			process.stdout.write(`${formatSessionInfo(info)}\n`);
 		} catch (err) {

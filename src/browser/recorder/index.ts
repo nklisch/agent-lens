@@ -11,6 +11,7 @@ import { ChromeLauncher } from "./chrome-launcher.js";
 import { EventNormalizer } from "./event-normalizer.js";
 import { EventPipeline } from "./event-pipeline.js";
 import { InputTracker } from "./input-tracker.js";
+import { setupMarkerOverlay } from "./marker-overlay.js";
 import { type BufferConfig, BufferConfigSchema, RollingBuffer } from "./rolling-buffer.js";
 import { TabManager } from "./tab-manager.js";
 
@@ -25,6 +26,8 @@ export interface BrowserRecorderConfig {
 	allTabs: boolean;
 	/** URL pattern filter for tab selection (when allTabs is false). */
 	tabFilter?: string;
+	/** URL to open when launching Chrome (ignored in attach mode). */
+	url?: string;
 	/** Rolling buffer config. */
 	buffer?: Partial<BufferConfig>;
 	/** Override detection rules. */
@@ -62,6 +65,8 @@ export class BrowserRecorder {
 	private screenshotCapture: ScreenshotCapture | null = null;
 	/** Map of targetId → CDP session ID for recording tabs. */
 	private tabSessions = new Map<string, string>();
+	/** Map of targetId → overlay cleanup function. */
+	private overlayCleanups = new Map<string, () => void>();
 	private launcher: ChromeLauncher;
 	private eventPipeline: EventPipeline | null = null;
 	private cachedSessionInfo: BrowserSessionInfo | null = null;
@@ -104,6 +109,7 @@ export class BrowserRecorder {
 			port: this.config.port,
 			attach: this.config.attach,
 			profile: this.config.profile,
+			url: this.config.url,
 		});
 
 		this.cdpClient = cdpClient;
@@ -202,6 +208,9 @@ export class BrowserRecorder {
 		this.eventPipeline = null;
 		this.cachedSessionInfo = null;
 
+		for (const cleanup of this.overlayCleanups.values()) cleanup();
+		this.overlayCleanups.clear();
+
 		if (this.screenshotCapture) {
 			this.screenshotCapture.stopPeriodic();
 		}
@@ -244,6 +253,10 @@ export class BrowserRecorder {
 				source: this.inputTracker.getInjectionScript(),
 			})
 			.catch(() => {});
+
+		// Inject marker overlay (floating button + Ctrl+Shift+M shortcut)
+		const overlayCleanup = await setupMarkerOverlay(this.cdpClient, sessionId, (label) => this.placeMarker(label));
+		this.overlayCleanups.set(targetId, overlayCleanup);
 
 		// Start periodic screenshot capture if configured
 		if (this.screenshotCapture && this.persistence) {

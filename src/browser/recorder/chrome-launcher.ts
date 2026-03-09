@@ -12,6 +12,8 @@ export interface ChromeLaunchOptions {
 	attach: boolean;
 	/** Optional Chrome profile name (used as user-data-dir). */
 	profile?: string;
+	/** URL to open when launching Chrome (ignored in attach mode). */
+	url?: string;
 }
 
 /**
@@ -31,7 +33,7 @@ export class ChromeLauncher {
 		if (options.attach) {
 			wsUrl = await fetchBrowserWsUrl(options.port);
 		} else {
-			this.chromeProcess = this.launchChrome(options.port, options.profile);
+			this.chromeProcess = this.launchChrome(options.port, options.profile, options.url);
 			wsUrl = await this.waitForChrome(options.port);
 		}
 
@@ -46,13 +48,17 @@ export class ChromeLauncher {
 		return { cdpClient, process: this.chromeProcess ?? undefined };
 	}
 
-	private launchChrome(port: number, profile?: string): ChildProcess {
+	private launchChrome(port: number, profile?: string, url?: string): ChildProcess {
 		const chromePaths = ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"];
 
 		const args = [`--remote-debugging-port=${port}`, "--no-first-run", "--no-default-browser-check"];
 
 		if (profile) {
 			args.push(`--user-data-dir=${resolve(homedir(), ".agent-lens", "chrome-profiles", profile)}`);
+		}
+
+		if (url) {
+			args.push(url);
 		}
 
 		for (const chromePath of chromePaths) {
