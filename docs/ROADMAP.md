@@ -600,6 +600,88 @@ Community or first-party adapters for:
 
 ---
 
+## Phase 14: Framework State — Detection & Infrastructure
+
+**Goal:** Automatically detect React, Vue, Solid, and Svelte on any page. Establish the `FrameworkTracker` class, new event types (`framework_detect`, `framework_state`, `framework_error`), and config-gated injection via `features.frameworkState` on `chrome_start`.
+
+→ framework-state/ROADMAP.md, framework-state/APPROACH.md
+
+### 14.1 — Event Type Extension
+### 14.2 — Config Schema Extension
+### 14.3 — FrameworkTracker Class
+### 14.4 — Framework Detection Script
+### 14.5 — Auto-Detection Rule Integration
+
+---
+
+## Phase 15: Framework State — React Observer
+
+**Goal:** Full React state observation — fiber tree walking, hooks linked list parsing, commit diffing, stale closure / infinite re-render / missing cleanup detection.
+
+→ framework-state/react/SPEC.md, INTERFACE.md, ARCH.md
+
+### 15.1 — React Hook Shim
+### 15.2 — Fiber Tree Walker
+### 15.3 — State Extraction
+### 15.4 — Commit Diffing & Event Generation
+### 15.5 — React Bug Pattern Detectors
+### 15.6 — React E2E Tests
+
+---
+
+## Phase 16: Framework State — Vue Observer
+
+**Goal:** Vue 2 + Vue 3 component lifecycle tracking, reactivity observation, Pinia/Vuex store integration, and reactivity gotcha detection.
+
+→ framework-state/vue/SPEC.md, INTERFACE.md, ARCH.md
+
+### 16.1 — Vue Hook Shim
+### 16.2 — Component Tree Walker
+### 16.3 — State Extraction
+### 16.4 — Store Integration
+### 16.5 — Vue Bug Pattern Detectors
+### 16.6 — Vue E2E Tests
+
+---
+
+## Phase 17: Framework State — Investigation Integration
+
+**Goal:** Investigation tools understand framework events natively. Search by component name, filter by framework, see framework context in diffs. Completes the React + Vue feature set end-to-end.
+
+→ framework-state/ROADMAP.md#Phase 17
+
+### 17.1 — Query Engine Framework Filters
+### 17.2 — Framework-Aware Renderers
+### 17.3 — Framework Context in Diffs
+
+---
+
+## Phase 18: Framework State — Solid Observer (Tier 2, future)
+
+**Goal:** Signal and store observation for SolidJS dev-mode builds. Requires DEV hooks access — not available in production. Graceful degradation to DOM observation.
+
+→ framework-state/solid/SPEC.md, INTERFACE.md, ARCH.md
+
+### 18.1 — Solid Detection & DEV Access
+### 18.2 — Signal & Store Observation
+### 18.3 — Ownership Tree & Component Attribution
+### 18.4 — Solid Bug Pattern Detectors
+
+---
+
+## Phase 19: Framework State — Svelte Observer (Tier 3, future)
+
+**Goal:** Svelte 4 observation via `$$invalidate` interception and `$capture_state()`. Svelte 5 fallback to DOM heuristics until sveltejs/svelte#11389 ships devtools hooks.
+
+→ framework-state/svelte/SPEC.md, INTERFACE.md, ARCH.md
+
+### 19.1 — Svelte Detection & Version Branching
+### 19.2 — Svelte 4 Observer
+### 19.3 — Svelte 5 Fallback
+### 19.4 — Svelte Bug Pattern Detectors
+
+---
+
 ## Dependency Graph
 
 ```
@@ -626,11 +708,22 @@ Phase 1: Core Debug Loop
                                             └── Phase 11: Browser Investigation Tools
                                                     │
                                                     └── Phase 12: Browser Intelligence
+                                                            │
+                                                            └── Phase 14: Framework Detection & Infra
+                                                                    │
+                                                                    ├── Phase 15: React Observer  ─┐
+                                                                    │                              ├→ Phase 17: Investigation
+                                                                    └── Phase 16: Vue Observer    ─┘
+                                                                                                    │
+                                                                                                    ├── Phase 18: Solid (Tier 2, future)
+                                                                                                    └── Phase 19: Svelte (Tier 3, future)
 ```
 
 Phases 2 and 3 can run in parallel after Phase 1. Phases 5, 6, 7, and 8 can run in parallel after Phase 4.
 Phases 9–12 are sequential (each builds on the previous). Phase 9 can start after Phase 7 (stable ecosystem)
 but has no dependency on Phase 8 (additional language adapters).
+Phases 15 and 16 can run in parallel after Phase 14. Phase 17 completes the React + Vue feature set.
+Phases 18 and 19 are future work — lower priority, can start after Phase 14.
 
 ---
 
@@ -652,3 +745,9 @@ Decisions made during roadmap planning, for reference:
 | Browser storage | SQLite + JSONL with byte-offset references | SQLite for queries, JSONL for raw events, byte offsets for O(1) event lookup |
 | Browser data location | ~/.agent-lens/browser/ | Lives under agent-lens, not separate ~/.browser-lens/ |
 | Input tracking approach | console.debug('__BL__', ...) | Piggybacks on Runtime.consoleAPICalled, no separate polling mechanism |
+| Framework state: React + Vue first | Tier 1 | Mature global hooks, passive detection, work in production builds |
+| Framework state: Solid as Tier 2 | Requires dev builds | DEV hooks stripped in production. No global hook — harder passive detection |
+| Framework state: Svelte as Tier 3 | Svelte 5 hooks missing | sveltejs/svelte#11389 unresolved. Svelte 4 doable, Svelte 5 is DOM-only fallback |
+| Framework state: same __BL__ channel | Reuse existing pipeline | No new transport. Framework events are new types in the same stream |
+| Framework state: config-gated | features.frameworkState | Keeps install lightweight. Agents not debugging frontend skip framework tools |
+| Framework state: no new MCP tools | Extend existing search/inspect | Framework events queryable through existing investigation tools. Avoids tool sprawl |
