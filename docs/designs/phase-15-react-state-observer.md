@@ -57,6 +57,8 @@ export interface ReactObserverConfig {
 	contextRerenderThreshold?: number;
 	/** Max fibers visited per commit (safety cap). Default: 5000. */
 	maxFibersPerCommit?: number;
+	/** Max queued events before overflow (oldest dropped). Default: 1000. */
+	maxQueueSize?: number;
 }
 
 /**
@@ -74,6 +76,7 @@ export class ReactObserver {
 			infiniteRerenderThreshold: config.infiniteRerenderThreshold ?? 15,
 			contextRerenderThreshold: config.contextRerenderThreshold ?? 20,
 			maxFibersPerCommit: config.maxFibersPerCommit ?? 5000,
+			maxQueueSize: config.maxQueueSize ?? 1000,
 		};
 	}
 
@@ -94,8 +97,8 @@ export class ReactObserver {
 - No server-side event processing — `FrameworkTracker.processFrameworkEvent()` already handles that.
 
 **Acceptance Criteria:**
-- [ ] `new ReactObserver()` uses sensible defaults for all config values
-- [ ] `new ReactObserver({ maxEventsPerSecond: 20 })` overrides that specific value
+- [ ] `new ReactObserver()` uses sensible defaults for all config values (including `maxQueueSize: 1000`)
+- [ ] `new ReactObserver({ maxEventsPerSecond: 20, maxQueueSize: 2000 })` overrides specified values
 - [ ] `getInjectionScript()` returns a non-empty string
 - [ ] The returned string is a valid self-contained IIFE (starts with `(function()`, ends with `})();`)
 - [ ] The returned string contains no `let` or `const` declarations (only `var`)
@@ -133,6 +136,7 @@ var INFINITE_RERENDER_THRESHOLD = ${config.infiniteRerenderThreshold};
 var INFINITE_RERENDER_WINDOW_MS = 1000;
 var CONTEXT_RERENDER_THRESHOLD = ${config.contextRerenderThreshold};
 var MAX_FIBERS_PER_COMMIT = ${config.maxFibersPerCommit};
+var MAX_QUEUE_SIZE = ${config.maxQueueSize};
 ```
 
 #### Section 2: Tracking State
@@ -145,10 +149,58 @@ var rafScheduled = false;
 
 #### Section 3: Reporting Helpers
 - `blReport(type, data)` — immediate report via `console.debug('__BL__', ...)`. Used only for detection updates (non-throttled).
-- `queueEvent(type, data)` — pushes to `eventQueue`, schedules RAF flush.
-- `flushEvents()` — RAF callback. Computes budget from elapsed time × `MAX_EVENTS_PER_SECOND`. Sends events up to budget. If events remain, schedules another frame. Caps queue at 100 entries; drops oldest with overflow warning.
+- `queueEvent(type, data)` — coalesces or pushes to `eventQueue`, schedules RAF flush.
+- `flushEvents()` — RAF callback. Computes budget from elapsed time × `MAX_EVENTS_PER_SECOND`. Sends events up to budget. If events remain, schedules another frame. Caps queue at `MAX_QUEUE_SIZE` (default 1000); drops oldest with overflow warning.
 
-Implementation: follow `react/ARCH.md § Throttling Strategy` exactly.
+**Per-component coalescing:** Before pushing a new `framework_state` update event, scan the queue (from tail, up to 30 entries) for an existing entry with the same `componentName` and `type === "framework_state"`. If found, merge: overwrite `changes`, `renderCount`, `triggerSource` with the latest values. This keeps the queue proportional to *distinct components updated per flush cycle*, not *total commits*. Mount and unmount events are never coalesced (they represent distinct lifecycle events). Error events are never coalesced.
+
+```javascript
+function queueEvent(type, data) {
+    // Coalesce updates to the same component
+    if (type === 'state' && data.changeType === 'update') {
+        var scanLimit = Math.min(eventQueue.length, 30);
+        for (var i = eventQueue.length - 1; i >= eventQueue.length - scanLimit; i--) {
+            var existing = eventQueue[i];
+            if (existing.type === 'state'
+                && existing.data.changeType === 'update'
+                && existing.data.componentName === data.componentName) {
+                // Merge: keep latest state
+                existing.data.changes = data.changes;
+                existing.data.renderCount = data.renderCount;
+                existing.data.triggerSource = data.triggerSource;
+                if (!rafScheduled) {
+                    rafScheduled = true;
+                    requestAnimationFrame(flushEvents);
+                }
+                return;
+            }
+        }
+    }
+
+    eventQueue.push({ type: type, data: data });
+
+    // Overflow protection
+    if (eventQueue.length > MAX_QUEUE_SIZE) {
+        var dropped = eventQueue.length - Math.floor(MAX_QUEUE_SIZE / 2);
+        eventQueue = eventQueue.slice(-Math.floor(MAX_QUEUE_SIZE / 2));
+        blReport('error', {
+            framework: 'react',
+            pattern: 'observer_overflow',
+            componentName: '[Observer]',
+            severity: 'low',
+            detail: 'Dropped ' + dropped + ' framework events due to high commit rate.',
+            evidence: { dropped: dropped }
+        });
+    }
+
+    if (!rafScheduled) {
+        rafScheduled = true;
+        requestAnimationFrame(flushEvents);
+    }
+}
+```
+
+Implementation: extends `react/ARCH.md § Throttling Strategy` with coalescing.
 
 #### Section 4: Serialization
 - `serialize(value, depth)` — shallow serialize with depth limit, string truncation (200 chars), array preview (10 items), object key cap (20 keys). Functions → `[Function: name]`, symbols → `.toString()`. Wraps object property access in try/catch for Proxy edge cases.
@@ -244,7 +296,10 @@ Wrapping in try/catch ensures our observer never crashes the page, and the origi
 - [ ] Unmount events emitted via `processUnmount`
 - [ ] State changes serialized with depth limit and string truncation
 - [ ] Events throttled via RAF with configurable rate limit
-- [ ] Event queue overflow (>100) drops oldest events with warning
+- [ ] Repeated updates to the same component are coalesced in the queue
+- [ ] Mount, unmount, and error events are never coalesced
+- [ ] Event queue overflow (>`MAX_QUEUE_SIZE`, default 1000) drops oldest events with warning
+- [ ] `MAX_QUEUE_SIZE` is configurable via `ReactObserverConfig.maxQueueSize`
 - [ ] All fiber access wrapped in try/catch (never crashes the page)
 
 ---
