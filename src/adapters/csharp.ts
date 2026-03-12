@@ -7,7 +7,7 @@ import { basename, extname, join, resolve as resolvePath } from "node:path";
 import { promisify } from "node:util";
 import { getErrorMessage, LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, CONNECT_SLOW, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
+import { allocatePort, checkCommand, CONNECT_SLOW, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
 import { downloadAndCacheNetcoredbg, getNetcoredbgBinaryPath, isNetcoredbgCached } from "./netcoredbg.js";
 
 const execAsync = promisify(exec);
@@ -24,34 +24,22 @@ export class CSharpAdapter implements DebugAdapter {
 	 * Check for dotnet CLI and netcoredbg availability.
 	 */
 	async checkPrerequisites(): Promise<PrerequisiteResult> {
-		const dotnetOk = await new Promise<boolean>((resolve) => {
-			const proc = spawn("dotnet", ["--version"], { stdio: "pipe" });
-			proc.on("close", (code) => resolve(code === 0));
-			proc.on("error", () => resolve(false));
+		const dotnet = await checkCommand({
+			cmd: "dotnet",
+			args: ["--version"],
+			missing: ["dotnet"],
+			installHint: "Install .NET SDK from https://dotnet.microsoft.com/download",
 		});
-
-		if (!dotnetOk) {
-			return {
-				satisfied: false,
-				missing: ["dotnet"],
-				installHint: "Install .NET SDK from https://dotnet.microsoft.com/download",
-			};
-		}
+		if (!dotnet.satisfied) return dotnet;
 
 		// Check netcoredbg: PATH first, then cache
-		const onPath = await new Promise<boolean>((resolve) => {
-			const proc = spawn("netcoredbg", ["--version"], { stdio: "pipe" });
-			proc.on("close", (code) => resolve(code === 0));
-			proc.on("error", () => resolve(false));
+		const netcoredbg = await checkCommand({
+			cmd: "netcoredbg",
+			args: ["--version"],
+			missing: ["netcoredbg"],
+			installHint: "Will be downloaded automatically on first use, or install from https://github.com/Samsung/netcoredbg/releases",
 		});
-
-		if (!onPath && !isNetcoredbgCached()) {
-			return {
-				satisfied: false,
-				missing: ["netcoredbg"],
-				installHint: "Will be downloaded automatically on first use, or install from https://github.com/Samsung/netcoredbg/releases",
-			};
-		}
+		if (!netcoredbg.satisfied && !isNetcoredbgCached()) return netcoredbg;
 
 		return { satisfied: true };
 	}

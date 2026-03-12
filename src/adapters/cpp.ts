@@ -5,7 +5,7 @@ import { extname, join, resolve as resolvePath } from "node:path";
 import { promisify } from "node:util";
 import { getErrorMessage, LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { gracefulDispose } from "./helpers.js";
+import { detectEarlySpawnFailure, gracefulDispose } from "./helpers.js";
 
 const execAsync = promisify(exec);
 
@@ -185,19 +185,7 @@ export class CppAdapter implements DebugAdapter {
 		});
 
 		// Wait briefly for early spawn failure
-		const earlyError = await new Promise<Error | null>((resolve) => {
-			child.on("error", (err) => resolve(new LaunchError(`Failed to spawn ${debuggerCmd}: ${err.message}`, stderrBuffer.join(""))));
-			child.on("close", (code) => {
-				if (code !== null && code !== 0) {
-					resolve(new LaunchError(`${debuggerCmd} exited with code ${code}. stderr: ${stderrBuffer.join("")}`, stderrBuffer.join("")));
-				} else {
-					resolve(null);
-				}
-			});
-			setTimeout(() => resolve(null), 500);
-		});
-
-		if (earlyError) throw earlyError;
+		await detectEarlySpawnFailure(child, debuggerCmd, stderrBuffer, 500);
 		if (!child.stdout || !child.stdin) throw new LaunchError(`${debuggerCmd} stdio not available`);
 
 		return {
@@ -236,19 +224,7 @@ export class CppAdapter implements DebugAdapter {
 			stderrBuffer.push(data.toString());
 		});
 
-		const earlyError = await new Promise<Error | null>((resolve) => {
-			child.on("error", (err) => resolve(new LaunchError(`Failed to spawn ${debuggerCmd}: ${err.message}`)));
-			child.on("close", (code) => {
-				if (code !== null && code !== 0) {
-					resolve(new LaunchError(`${debuggerCmd} exited with code ${code}. stderr: ${stderrBuffer.join("")}`));
-				} else {
-					resolve(null);
-				}
-			});
-			setTimeout(() => resolve(null), 500);
-		});
-
-		if (earlyError) throw earlyError;
+		await detectEarlySpawnFailure(child, debuggerCmd, stderrBuffer, 500);
 		if (!child.stdout || !child.stdin) throw new LaunchError(`${debuggerCmd} stdio not available`);
 
 		return {

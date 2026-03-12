@@ -1,3 +1,4 @@
+import { FrameworkObserver } from "./observer-base.js";
 import { buildVueInjectionScript } from "./vue-injection.js";
 
 export interface VueObserverConfig {
@@ -17,23 +18,23 @@ export interface VueObserverConfig {
 	storeDiscoveryIntervalMs?: number;
 }
 
+const VUE_OBSERVER_DEFAULTS: Required<VueObserverConfig> = {
+	maxEventsPerSecond: 10,
+	maxSerializationDepth: 3,
+	infiniteLoopThreshold: 30,
+	maxComponentsPerBatch: 5000,
+	maxQueueSize: 1000,
+	storeObservation: true,
+	storeDiscoveryIntervalMs: 5000,
+};
+
 /**
  * Manages the Vue 3 state observation injection script.
  * Instantiated by FrameworkTracker when "vue" is in the enabled frameworks.
  */
-export class VueObserver {
-	private config: Required<VueObserverConfig>;
-
+export class VueObserver extends FrameworkObserver<VueObserverConfig> {
 	constructor(config: VueObserverConfig = {}) {
-		this.config = {
-			maxEventsPerSecond: config.maxEventsPerSecond ?? 10,
-			maxSerializationDepth: config.maxSerializationDepth ?? 3,
-			infiniteLoopThreshold: config.infiniteLoopThreshold ?? 30,
-			maxComponentsPerBatch: config.maxComponentsPerBatch ?? 5000,
-			maxQueueSize: config.maxQueueSize ?? 1000,
-			storeObservation: config.storeObservation ?? true,
-			storeDiscoveryIntervalMs: config.storeDiscoveryIntervalMs ?? 5000,
-		};
+		super(VUE_OBSERVER_DEFAULTS, config);
 	}
 
 	/**

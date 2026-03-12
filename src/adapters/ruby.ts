@@ -5,7 +5,7 @@ import type { Socket } from "node:net";
 import { isAbsolute, resolve as resolvePath } from "node:path";
 import { LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, CONNECT_SLOW, connectTCP, gracefulDispose } from "./helpers.js";
+import { allocatePort, checkCommand, CONNECT_SLOW, connectTCP, detectEarlySpawnFailure, gracefulDispose } from "./helpers.js";
 
 export class RubyAdapter implements DebugAdapter {
 	id = "ruby";
@@ -19,37 +19,22 @@ export class RubyAdapter implements DebugAdapter {
 	 * Check for Ruby 3.1+ and rdbg (debug gem) availability.
 	 */
 	async checkPrerequisites(): Promise<PrerequisiteResult> {
-		// Check rdbg
-		const rdbgOk = await new Promise<boolean>((resolve) => {
-			const proc = spawn("rdbg", ["--version"], { stdio: "pipe" });
-			proc.on("close", (code) => resolve(code === 0));
-			proc.on("error", () => resolve(false));
+		const rdbg = await checkCommand({
+			cmd: "rdbg",
+			args: ["--version"],
+			missing: ["rdbg"],
+			installHint: "gem install debug (requires Ruby 3.1+)",
 		});
+		if (rdbg.satisfied) return rdbg;
 
-		if (!rdbgOk) {
-			// Check if ruby itself is present for a better hint
-			const rubyOk = await new Promise<boolean>((resolve) => {
-				const proc = spawn("ruby", ["--version"], { stdio: "pipe" });
-				proc.on("close", (code) => resolve(code === 0));
-				proc.on("error", () => resolve(false));
-			});
-
-			if (!rubyOk) {
-				return {
-					satisfied: false,
-					missing: ["ruby", "rdbg"],
-					installHint: "Install Ruby 3.1+ from https://www.ruby-lang.org, then: gem install debug",
-				};
-			}
-
-			return {
-				satisfied: false,
-				missing: ["rdbg"],
-				installHint: "gem install debug (requires Ruby 3.1+)",
-			};
-		}
-
-		return { satisfied: true };
+		// rdbg not found — check if ruby itself is present for a better hint
+		const ruby = await checkCommand({
+			cmd: "ruby",
+			args: ["--version"],
+			missing: ["ruby", "rdbg"],
+			installHint: "Install Ruby 3.1+ from https://www.ruby-lang.org, then: gem install debug",
+		});
+		return ruby.satisfied ? rdbg : ruby;
 	}
 
 	/**
@@ -86,19 +71,7 @@ export class RubyAdapter implements DebugAdapter {
 		});
 
 		// Wait briefly for early spawn failure
-		const earlyError = await new Promise<Error | null>((resolve) => {
-			child.on("error", (err) => resolve(new LaunchError(`Failed to spawn rdbg: ${err.message}`, stderrBuffer.join(""))));
-			child.on("close", (code) => {
-				if (code !== null && code !== 0) {
-					resolve(new LaunchError(`rdbg exited with code ${code}. output: ${stderrBuffer.join("")}`, stderrBuffer.join("")));
-				} else {
-					resolve(null);
-				}
-			});
-			setTimeout(() => resolve(null), 500);
-		});
-
-		if (earlyError) throw earlyError;
+		await detectEarlySpawnFailure(child, "rdbg", stderrBuffer, 500);
 
 		// Poll TCP until rdbg is ready
 		const socket = await connectTCP("127.0.0.1", port, CONNECT_SLOW.maxRetries, CONNECT_SLOW.retryDelayMs).catch((err) => {

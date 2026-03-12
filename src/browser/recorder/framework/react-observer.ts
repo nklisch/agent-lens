@@ -1,3 +1,4 @@
+import { FrameworkObserver } from "./observer-base.js";
 import { buildReactInjectionScript } from "./react-injection.js";
 
 export interface ReactObserverConfig {
@@ -17,23 +18,23 @@ export interface ReactObserverConfig {
 	maxQueueSize?: number;
 }
 
+const REACT_OBSERVER_DEFAULTS: Required<ReactObserverConfig> = {
+	maxEventsPerSecond: 10,
+	maxSerializationDepth: 3,
+	staleClosureThreshold: 5,
+	infiniteRerenderThreshold: 15,
+	contextRerenderThreshold: 20,
+	maxFibersPerCommit: 5000,
+	maxQueueSize: 1000,
+};
+
 /**
  * Manages the React state observation injection script.
  * Instantiated by FrameworkTracker when "react" is in the enabled frameworks.
  */
-export class ReactObserver {
-	private config: Required<ReactObserverConfig>;
-
+export class ReactObserver extends FrameworkObserver<ReactObserverConfig> {
 	constructor(config: ReactObserverConfig = {}) {
-		this.config = {
-			maxEventsPerSecond: config.maxEventsPerSecond ?? 10,
-			maxSerializationDepth: config.maxSerializationDepth ?? 3,
-			staleClosureThreshold: config.staleClosureThreshold ?? 5,
-			infiniteRerenderThreshold: config.infiniteRerenderThreshold ?? 15,
-			contextRerenderThreshold: config.contextRerenderThreshold ?? 20,
-			maxFibersPerCommit: config.maxFibersPerCommit ?? 5000,
-			maxQueueSize: config.maxQueueSize ?? 1000,
-		};
+		super(REACT_OBSERVER_DEFAULTS, config);
 	}
 
 	/**

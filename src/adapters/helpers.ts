@@ -8,6 +8,30 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { getErrorMessage, LaunchError } from "../core/errors.js";
+import type { PrerequisiteResult } from "./base.js";
+
+/**
+ * Spawn a command and check whether it exits successfully.
+ * Returns `{ satisfied: true }` on exit code 0, or
+ * `{ satisfied: false, missing, installHint }` on spawn error or non-zero exit.
+ * Use this to implement `checkPrerequisites()` in adapters.
+ */
+export function checkCommand(opts: {
+	cmd: string;
+	args: string[];
+	/** Full environment to pass to the child process. Merges over process.env if provided. */
+	env?: NodeJS.ProcessEnv;
+	missing: string[];
+	installHint: string;
+}): Promise<PrerequisiteResult> {
+	return new Promise((resolve) => {
+		const spawnEnv = opts.env !== undefined ? { ...process.env, ...opts.env } : undefined;
+		const proc = spawn(opts.cmd, opts.args, { stdio: "pipe", env: spawnEnv });
+		const fail = (): void => resolve({ satisfied: false, missing: opts.missing, installHint: opts.installHint });
+		proc.on("close", (code) => (code === 0 ? resolve({ satisfied: true }) : fail()));
+		proc.on("error", fail);
+	});
+}
 
 /**
  * Allocate a free TCP port by binding to port 0, reading the
@@ -99,6 +123,30 @@ export function spawnAndWait(options: SpawnAndWaitOptions): Promise<SpawnResult>
 			clearTimeout(timeout);
 			if (!resolved && code !== null && code !== 0) {
 				reject(new LaunchError(`${label} exited with code ${code}. output: ${getOutput()}`, getOutput()));
+			}
+		});
+	});
+}
+
+/**
+ * Wait briefly after spawning a debugger process to catch early failures.
+ * Rejects with LaunchError if the process emits an error or exits with a non-zero
+ * code before `timeoutMs` elapses. Resolves if the process is still alive after the timeout.
+ * Use for debuggers that don't emit a readiness signal (use `spawnAndWait` for those).
+ */
+export function detectEarlySpawnFailure(child: ChildProcess, label: string, stderrBuffer: string[], timeoutMs = 300): Promise<void> {
+	return new Promise<void>((resolve, reject) => {
+		const timer = setTimeout(resolve, timeoutMs);
+		child.on("error", (err) => {
+			clearTimeout(timer);
+			reject(new LaunchError(`Failed to spawn ${label}: ${err.message}`, stderrBuffer.join("")));
+		});
+		child.on("close", (code) => {
+			clearTimeout(timer);
+			if (code !== null && code !== 0) {
+				reject(new LaunchError(`${label} exited with code ${code}. stderr: ${stderrBuffer.join("")}`, stderrBuffer.join("")));
+			} else {
+				resolve();
 			}
 		});
 	});

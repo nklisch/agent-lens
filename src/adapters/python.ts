@@ -5,7 +5,7 @@ import type { Socket } from "node:net";
 import { isAbsolute, resolve as resolvePath } from "node:path";
 import { LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, CONNECT_SLOW, connectTCP, gracefulDispose } from "./helpers.js";
+import { allocatePort, checkCommand, CONNECT_SLOW, connectTCP, detectEarlySpawnFailure, gracefulDispose } from "./helpers.js";
 
 export class PythonAdapter implements DebugAdapter {
 	id = "python";
@@ -17,36 +17,14 @@ export class PythonAdapter implements DebugAdapter {
 
 	/**
 	 * Check for python3 and debugpy availability.
-	 * Spawns `python3 -m debugpy --version` and parses output.
+	 * Spawns `python3 -m debugpy --version` and checks exit code.
 	 */
-	async checkPrerequisites(): Promise<PrerequisiteResult> {
-		return new Promise((resolve) => {
-			const proc = spawn("python3", ["-m", "debugpy", "--version"], { stdio: "pipe" });
-			let _output = "";
-			proc.stdout?.on("data", (d: Buffer) => {
-				_output += d.toString();
-			});
-			proc.stderr?.on("data", (d: Buffer) => {
-				_output += d.toString();
-			});
-			proc.on("close", (code) => {
-				if (code === 0) {
-					resolve({ satisfied: true });
-				} else {
-					resolve({
-						satisfied: false,
-						missing: ["debugpy"],
-						installHint: "pip install debugpy",
-					});
-				}
-			});
-			proc.on("error", () => {
-				resolve({
-					satisfied: false,
-					missing: ["python3", "debugpy"],
-					installHint: "Install python3 and pip install debugpy",
-				});
-			});
+	checkPrerequisites(): Promise<PrerequisiteResult> {
+		return checkCommand({
+			cmd: "python3",
+			args: ["-m", "debugpy", "--version"],
+			missing: ["python3", "debugpy"],
+			installHint: "Install python3 and pip install debugpy",
 		});
 	}
 
@@ -83,19 +61,7 @@ export class PythonAdapter implements DebugAdapter {
 		});
 
 		// Handle early spawn failure
-		const earlyError = await new Promise<Error | null>((resolve) => {
-			child.on("error", (err) => resolve(new LaunchError(`Failed to spawn debugpy: ${err.message}`, stderrBuffer.join(""))));
-			child.on("close", (code) => {
-				if (code !== null && code !== 0) {
-					resolve(new LaunchError(`debugpy exited with code ${code}. stderr: ${stderrBuffer.join("")}`, stderrBuffer.join("")));
-				} else {
-					resolve(null);
-				}
-			});
-			setTimeout(() => resolve(null), 300);
-		});
-
-		if (earlyError) throw earlyError;
+		await detectEarlySpawnFailure(child, "debugpy", stderrBuffer, 300);
 
 		// Poll TCP until the adapter server is ready
 		const socket = await connectTCP("127.0.0.1", port, CONNECT_SLOW.maxRetries, CONNECT_SLOW.retryDelayMs).catch((err) => {

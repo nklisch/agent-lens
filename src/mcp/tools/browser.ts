@@ -7,12 +7,29 @@ import { ReplayContextGenerator } from "../../browser/investigation/replay-conte
 import type { BrowserSessionInfo, Marker } from "../../browser/types.js";
 import { DaemonClient, ensureDaemon } from "../../daemon/client.js";
 import { getDaemonSocketPath } from "../../daemon/protocol.js";
-import { errorResponse } from "./utils.js";
+import { errorResponse, textResponse, toolHandler } from "./utils.js";
 
 async function getDaemonClient(timeoutMs = 30_000): Promise<DaemonClient> {
 	const socketPath = getDaemonSocketPath();
 	await ensureDaemon(socketPath);
 	return new DaemonClient({ socketPath, requestTimeoutMs: timeoutMs });
+}
+
+type ToolResult = { content: Array<{ type: "text"; text: string }>; isError?: true };
+
+/**
+ * Acquire a daemon client, call fn, format the result as text, and always dispose.
+ * Use for chrome_* tool handlers that follow the get/call/dispose pattern.
+ */
+async function withDaemonClient<T>(fn: (client: DaemonClient) => Promise<T>, format: (result: T) => string, timeoutMs?: number): Promise<ToolResult> {
+	const client = await getDaemonClient(timeoutMs);
+	try {
+		return textResponse(format(await fn(client)));
+	} catch (err) {
+		return errorResponse(err);
+	} finally {
+		client.dispose();
+	}
 }
 
 function formatSessionInfo(info: BrowserSessionInfo): string {
@@ -81,30 +98,24 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 					screenshotIntervalMs: screenshot_interval_ms,
 					frameworkState: framework_state,
 				});
-				return { content: [{ type: "text" as const, text: formatSessionInfo(info) }] };
+				return textResponse(formatSessionInfo(info));
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
 				const isCdpError = /cdp|chrome|connect|webkit|remote.debug/i.test(msg);
 				if (isCdpError) {
-					return {
-						content: [
-							{
-								type: "text" as const,
-								text:
-									`Error: ${msg}\n\n` +
-									"Likely cause: Chrome is already running without remote debugging enabled.\n\n" +
-									"Fix option 1 — launch an isolated Chrome instance (recommended):\n" +
-									"  chrome_start(profile: 'agent-lens', url: '<your-url>')\n" +
-									"  This creates a separate Chrome profile so existing Chrome is not affected.\n\n" +
-									"Fix option 2 — manually start Chrome with debugging enabled, then attach:\n" +
-									"  google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/agent-lens-chrome\n" +
-									"  Then: chrome_start(attach: true)\n\n" +
-									"Fix option 3 — kill existing Chrome and retry:\n" +
-									"  pkill -f chrome  (or pkill -f chromium)\n" +
-									"  Then: chrome_start(url: '<your-url>')",
-							},
-						],
-					};
+					return textResponse(
+						`Error: ${msg}\n\n` +
+							"Likely cause: Chrome is already running without remote debugging enabled.\n\n" +
+							"Fix option 1 — launch an isolated Chrome instance (recommended):\n" +
+							"  chrome_start(profile: 'agent-lens', url: '<your-url>')\n" +
+							"  This creates a separate Chrome profile so existing Chrome is not affected.\n\n" +
+							"Fix option 2 — manually start Chrome with debugging enabled, then attach:\n" +
+							"  google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/agent-lens-chrome\n" +
+							"  Then: chrome_start(attach: true)\n\n" +
+							"Fix option 3 — kill existing Chrome and retry:\n" +
+							"  pkill -f chrome  (or pkill -f chromium)\n" +
+							"  Then: chrome_start(url: '<your-url>')",
+					);
 				}
 				return errorResponse(err);
 			} finally {
@@ -118,20 +129,11 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 		"chrome_status",
 		"Show the current Chrome recording status — whether Chrome is active, how many events and markers have been captured, and which tabs are being recorded.",
 		{},
-		async () => {
-			const client = await getDaemonClient();
-			try {
-				const info = await client.call<BrowserSessionInfo | null>("browser.status", {});
-				if (!info) {
-					return { content: [{ type: "text" as const, text: "No active Chrome recording. Use chrome_start to begin." }] };
-				}
-				return { content: [{ type: "text" as const, text: formatSessionInfo(info) }] };
-			} catch (err) {
-				return errorResponse(err);
-			} finally {
-				client.dispose();
-			}
-		},
+		() =>
+			withDaemonClient(
+				(client) => client.call<BrowserSessionInfo | null>("browser.status", {}),
+				(info) => (info ? formatSessionInfo(info) : "No active Chrome recording. Use chrome_start to begin."),
+			),
 	);
 
 	// Tool: chrome_mark
@@ -142,19 +144,15 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 		{
 			label: z.string().optional().describe("Label for the marker, e.g. 'form submitted' or 'error appeared'. Descriptive labels help you find this marker later with around_marker."),
 		},
-		async ({ label }) => {
-			const client = await getDaemonClient();
-			try {
-				const marker = await client.call<Marker>("browser.mark", { label });
-				const time = new Date(marker.timestamp).toISOString();
-				const markerLabel = marker.label ? `"${marker.label}"` : "(unlabeled)";
-				return { content: [{ type: "text" as const, text: `Marker placed: ${markerLabel} at ${time} (id: ${marker.id})` }] };
-			} catch (err) {
-				return errorResponse(err);
-			} finally {
-				client.dispose();
-			}
-		},
+		({ label }) =>
+			withDaemonClient(
+				(client) => client.call<Marker>("browser.mark", { label }),
+				(marker) => {
+					const time = new Date(marker.timestamp).toISOString();
+					const markerLabel = marker.label ? `"${marker.label}"` : "(unlabeled)";
+					return `Marker placed: ${markerLabel} at ${time} (id: ${marker.id})`;
+				},
+			),
 	);
 
 	// Tool: chrome_stop
@@ -165,17 +163,11 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 		{
 			close_chrome: z.boolean().optional().describe("Also close the Chrome browser. Default: false"),
 		},
-		async ({ close_chrome }) => {
-			const client = await getDaemonClient();
-			try {
-				await client.call("browser.stop", { closeBrowser: close_chrome ?? false });
-				return { content: [{ type: "text" as const, text: "Chrome recording stopped. Use session_list to find the recorded session." }] };
-			} catch (err) {
-				return errorResponse(err);
-			} finally {
-				client.dispose();
-			}
-		},
+		({ close_chrome }) =>
+			withDaemonClient(
+				(client) => client.call("browser.stop", { closeBrowser: close_chrome ?? false }),
+				() => "Chrome recording stopped. Use session_list to find the recorded session.",
+			),
 	);
 
 	// Tool 1: session_list
@@ -190,21 +182,17 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			has_errors: z.boolean().optional().describe("Only sessions with captured errors (4xx/5xx, exceptions, console errors)"),
 			limit: z.number().optional().describe("Max results. Default: 10"),
 		},
-		async ({ after, before, url_contains, has_markers, has_errors, limit }) => {
-			try {
-				const sessions = queryEngine.listSessions({
-					after: after ? new Date(after).getTime() : undefined,
-					before: before ? new Date(before).getTime() : undefined,
-					urlContains: url_contains,
-					hasMarkers: has_markers,
-					hasErrors: has_errors,
-					limit: limit ?? 10,
-				});
-				return { content: [{ type: "text" as const, text: renderSessionList(sessions) }] };
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(async ({ after, before, url_contains, has_markers, has_errors, limit }) => {
+			const sessions = queryEngine.listSessions({
+				after: after ? new Date(after).getTime() : undefined,
+				before: before ? new Date(before).getTime() : undefined,
+				urlContains: url_contains,
+				hasMarkers: has_markers,
+				hasErrors: has_errors,
+				limit: limit ?? 10,
+			});
+			return renderSessionList(sessions);
+		}),
 	);
 
 	// Tool 2: session_overview
@@ -236,9 +224,7 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 					aroundMarker: around_marker,
 					timeRange: time_range ? { start: new Date(time_range.start).getTime(), end: new Date(time_range.end).getTime() } : undefined,
 				});
-				return {
-					content: [{ type: "text" as const, text: renderSessionOverview(overview, token_budget ?? 3000) }],
-				};
+				return textResponse(renderSessionOverview(overview, token_budget ?? 3000));
 			} catch (err) {
 				return errorResponse(err);
 			}
@@ -309,9 +295,7 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 					},
 					maxResults: limit ?? 10,
 				});
-				return {
-					content: [{ type: "text" as const, text: renderSearchResults(results, token_budget ?? 2000) }],
-				};
+				return textResponse(renderSearchResults(results, token_budget ?? 2000));
 			} catch (err) {
 				return errorResponse(err);
 			}
@@ -337,22 +321,16 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			context_window: z.number().optional().describe("Seconds of surrounding events to include. Default: 5"),
 			token_budget: z.number().optional().describe("Max tokens for the response. Default: 3000"),
 		},
-		async ({ session_id, event_id, marker_id, timestamp, include, context_window, token_budget }) => {
-			try {
-				const result = queryEngine.inspect(session_id, {
-					eventId: event_id,
-					markerId: marker_id,
-					timestamp: timestamp ? new Date(timestamp).getTime() : undefined,
-					include: include as InspectParams["include"],
-					contextWindow: context_window ?? 5,
-				});
-				return {
-					content: [{ type: "text" as const, text: renderInspectResult(result, token_budget ?? 3000) }],
-				};
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(async ({ session_id, event_id, marker_id, timestamp, include, context_window, token_budget }) => {
+			const result = queryEngine.inspect(session_id, {
+				eventId: event_id,
+				markerId: marker_id,
+				timestamp: timestamp ? new Date(timestamp).getTime() : undefined,
+				include: include as InspectParams["include"],
+				contextWindow: context_window ?? 5,
+			});
+			return renderInspectResult(result, token_budget ?? 3000);
+		}),
 	);
 
 	// Tool 5: session_diff
@@ -371,15 +349,11 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 				.describe("What to diff. Default: form_state, storage, url, console_new, network_new (framework_state must be explicitly requested)"),
 			token_budget: z.number().optional().describe("Max tokens. Default: 2000"),
 		},
-		async ({ session_id, from, to, include, token_budget }) => {
-			try {
-				const differ = new SessionDiffer(queryEngine);
-				const diff = differ.diff({ sessionId: session_id, before: from, after: to, include });
-				return { content: [{ type: "text" as const, text: renderDiff(diff, token_budget ?? 2000) }] };
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(async ({ session_id, from, to, include, token_budget }) => {
+			const differ = new SessionDiffer(queryEngine);
+			const diff = differ.diff({ sessionId: session_id, before: from, after: to, include });
+			return renderDiff(diff, token_budget ?? 2000);
+		}),
 	);
 
 	// Tool 6: session_replay_context
@@ -403,20 +377,15 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 				.describe("Output format: 'summary' for overview, 'reproduction_steps' for step-by-step, 'test_scaffold' for automated test code"),
 			test_framework: z.enum(["playwright", "cypress"]).optional().describe("Test framework for scaffold generation. Default: playwright"),
 		},
-		async ({ session_id, around_marker, time_range, format, test_framework }) => {
-			try {
-				const generator = new ReplayContextGenerator(queryEngine);
-				const text = generator.generate({
-					sessionId: session_id,
-					aroundMarker: around_marker,
-					timeRange: time_range ? { start: new Date(time_range.start).getTime(), end: new Date(time_range.end).getTime() } : undefined,
-					format,
-					testFramework: test_framework,
-				});
-				return { content: [{ type: "text" as const, text }] };
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(async ({ session_id, around_marker, time_range, format, test_framework }) => {
+			const generator = new ReplayContextGenerator(queryEngine);
+			return generator.generate({
+				sessionId: session_id,
+				aroundMarker: around_marker,
+				timeRange: time_range ? { start: new Date(time_range.start).getTime(), end: new Date(time_range.end).getTime() } : undefined,
+				format,
+				testFramework: test_framework,
+			});
+		}),
 	);
 }

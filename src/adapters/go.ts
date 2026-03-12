@@ -1,12 +1,11 @@
 import type { ChildProcess } from "node:child_process";
-import { spawn } from "node:child_process";
 import { access } from "node:fs/promises";
 import type { Socket } from "node:net";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve as resolvePath } from "node:path";
 import { LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, CONNECT_FAST, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
+import { allocatePort, checkCommand, CONNECT_FAST, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
 
 /**
  * Build an augmented PATH that includes common Go binary install locations
@@ -30,27 +29,13 @@ export class GoAdapter implements DebugAdapter {
 	/**
 	 * Check for Delve (dlv) availability.
 	 */
-	async checkPrerequisites(): Promise<PrerequisiteResult> {
-		return new Promise((resolve) => {
-			const proc = spawn("dlv", ["version"], { stdio: "pipe", env: goEnv() });
-			proc.on("close", (code) => {
-				if (code === 0) {
-					resolve({ satisfied: true });
-				} else {
-					resolve({
-						satisfied: false,
-						missing: ["dlv"],
-						installHint: "go install github.com/go-delve/delve/cmd/dlv@latest",
-					});
-				}
-			});
-			proc.on("error", () => {
-				resolve({
-					satisfied: false,
-					missing: ["dlv"],
-					installHint: "go install github.com/go-delve/delve/cmd/dlv@latest",
-				});
-			});
+	checkPrerequisites(): Promise<PrerequisiteResult> {
+		return checkCommand({
+			cmd: "dlv",
+			args: ["version"],
+			env: goEnv(),
+			missing: ["dlv"],
+			installHint: "go install github.com/go-delve/delve/cmd/dlv@latest",
 		});
 	}
 

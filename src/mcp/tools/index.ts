@@ -4,24 +4,9 @@ import { z } from "zod";
 import { listAdapters } from "../../adapters/registry.js";
 import { configToOptions, parseLaunchJson } from "../../core/launch-json.js";
 import type { SessionManager } from "../../core/session-manager.js";
+import { BreakpointSchema, FileBreakpointsSchema, mapViewportConfig } from "../../core/types.js";
 import { listDetectors } from "../../frameworks/index.js";
-import { errorResponse } from "./utils.js";
-
-/**
- * Breakpoint schema with agent-facing descriptions for MCP tool inputs.
- * Wraps the core BreakpointSchema with describe() annotations.
- */
-const BreakpointMcpSchema = z.object({
-	line: z.number().describe("Line number"),
-	condition: z.string().optional().describe("Expression that must be true to trigger. E.g., 'discount < 0'"),
-	hitCondition: z.string().optional().describe("Break after N hits. E.g., '>=100'"),
-	logMessage: z.string().optional().describe("Log instead of breaking. Supports {expression} interpolation."),
-});
-
-const FileBreakpointsMcpSchema = z.object({
-	file: z.string().describe("Source file path (relative or absolute)"),
-	breakpoints: z.array(BreakpointMcpSchema),
-});
+import { errorResponse, textResponse, toolHandler } from "./utils.js";
 
 const ViewportConfigSchema = z
 	.object({
@@ -34,33 +19,6 @@ const ViewportConfigSchema = z
 	})
 	.optional()
 	.describe("Override default viewport rendering parameters");
-
-/**
- * Map the MCP tool's snake_case viewport_config input to the camelCase
- * ViewportConfig expected by SessionManager. Returns undefined if not provided.
- */
-function mapViewportConfig(
-	viewport_config:
-		| {
-				source_context_lines?: number;
-				stack_depth?: number;
-				locals_max_depth?: number;
-				locals_max_items?: number;
-				string_truncate_length?: number;
-				collection_preview_items?: number;
-		  }
-		| undefined,
-) {
-	if (!viewport_config) return undefined;
-	return {
-		sourceContextLines: viewport_config.source_context_lines,
-		stackDepth: viewport_config.stack_depth,
-		localsMaxDepth: viewport_config.locals_max_depth,
-		localsMaxItems: viewport_config.locals_max_items,
-		stringTruncateLength: viewport_config.string_truncate_length,
-		collectionPreviewItems: viewport_config.collection_preview_items,
-	};
-}
 
 /**
  * Build a human-readable summary of supported languages and frameworks
@@ -97,11 +55,16 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 		`Launch a debug target process. Sets initial breakpoints and returns a session handle. The viewport shows source, locals, and call stack at each stop. ` +
 			`Automatically detects test/web frameworks (${frameworkIds.join(", ")}) to configure the debugger appropriately.`,
 		{
-			command: z.string().optional().describe(`Command to execute, e.g. 'python app.py' or '${frameworkIds[0]} tests/'. Required unless launch_config is provided. Test and web frameworks are auto-detected and configured for debugging.`),
+			command: z
+				.string()
+				.optional()
+				.describe(
+					`Command to execute, e.g. 'python app.py' or '${frameworkIds[0]} tests/'. Required unless launch_config is provided. Test and web frameworks are auto-detected and configured for debugging.`,
+				),
 			language: z.string().optional().describe(buildLanguageDescription()),
 			framework: z.string().optional().describe(buildFrameworkDescription()),
 			breakpoints: z
-				.array(FileBreakpointsMcpSchema)
+				.array(FileBreakpointsSchema)
 				.optional()
 				.describe(
 					"Initial breakpoints to set before execution begins. " +
@@ -129,25 +92,19 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 
 				// Guard: URLs are not debuggable processes — redirect to browser tools
 				if (resolvedCommand && /^https?:\/\//i.test(resolvedCommand.trim())) {
-					return {
-						content: [
-							{
-								type: "text" as const,
-								text:
-									"Error: debug_launch runs code debuggers — it cannot open URLs in a browser.\n\n" +
-									"To record browser activity at a URL, use chrome_start instead:\n" +
-									`  chrome_start(url: "${resolvedCommand}")\n\n` +
-									"chrome_start launches Chrome, opens the URL, and records network, console, and user input events.",
-							},
-						],
-					};
+					return textResponse(
+						"Error: debug_launch runs code debuggers — it cannot open URLs in a browser.\n\n" +
+							"To record browser activity at a URL, use chrome_start instead:\n" +
+							`  chrome_start(url: "${resolvedCommand}")\n\n` +
+							"chrome_start launches Chrome, opens the URL, and records network, console, and user input events.",
+					);
 				}
 
 				if (launch_config) {
 					const configPath = launch_config.path ? resolvePath(launch_config.path) : resolvePath(process.cwd(), ".vscode/launch.json");
 					const launchJson = await parseLaunchJson(configPath);
 					if (!launchJson) {
-						return { content: [{ type: "text" as const, text: `Error: launch.json not found at: ${configPath}` }] };
+						return textResponse(`Error: launch.json not found at: ${configPath}`);
 					}
 
 					let configEntry = launchJson.configurations[0];
@@ -155,15 +112,15 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 						const found = launchJson.configurations.find((c) => c.name === launch_config.name);
 						if (!found) {
 							const available = launchJson.configurations.map((c) => `  "${c.name}"`).join("\n");
-							return { content: [{ type: "text" as const, text: `Error: Configuration "${launch_config.name}" not found. Available:\n${available}` }] };
+							return textResponse(`Error: Configuration "${launch_config.name}" not found. Available:\n${available}`);
 						}
 						configEntry = found;
 					} else if (launchJson.configurations.length === 0) {
-						return { content: [{ type: "text" as const, text: "Error: No configurations found in launch.json" }] };
+						return textResponse("Error: No configurations found in launch.json");
 					}
 
 					if (!configEntry) {
-						return { content: [{ type: "text" as const, text: "Error: No configuration found in launch.json" }] };
+						return textResponse("Error: No configuration found in launch.json");
 					}
 
 					const converted = configToOptions(configEntry, process.cwd());
@@ -172,8 +129,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 							...converted.options,
 							language: language ?? converted.options.language,
 						});
-						const text = `Session: ${result.sessionId}\nStatus: ${result.status}\nAttached via launch.json config.`;
-						return { content: [{ type: "text" as const, text }] };
+						return textResponse(`Session: ${result.sessionId}\nStatus: ${result.status}\nAttached via launch.json config.`);
 					}
 					resolvedCommand = command ?? converted.options.command;
 					resolvedLanguage = language ?? (converted.options.language as typeof language);
@@ -182,7 +138,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 				}
 
 				if (!resolvedCommand) {
-					return { content: [{ type: "text" as const, text: "Error: Either 'command' or 'launch_config' must be provided" }] };
+					return textResponse("Error: Either 'command' or 'launch_config' must be provided");
 				}
 
 				const result = await sessionManager.launch({
@@ -211,9 +167,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 				} else {
 					parts.push(`Status: ${result.status}`);
 				}
-				const text = parts.join("\n");
-
-				return { content: [{ type: "text" as const, text }] };
+				return textResponse(parts.join("\n"));
 			} catch (err) {
 				return errorResponse(err);
 			}
@@ -230,14 +184,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 		async ({ session_id }) => {
 			try {
 				const result = await sessionManager.stop(session_id);
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: `Session ${session_id} terminated.\nDuration: ${result.duration}ms\nActions: ${result.actionCount}`,
-						},
-					],
-				};
+				return textResponse(`Session ${session_id} terminated.\nDuration: ${result.duration}ms\nActions: ${result.actionCount}`);
 			} catch (err) {
 				return errorResponse(err);
 			}
@@ -280,7 +227,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 					// Capabilities not available (e.g. not yet initialized)
 				}
 
-				return { content: [{ type: "text" as const, text }] };
+				return textResponse(text);
 			} catch (err) {
 				return errorResponse(err);
 			}
@@ -296,14 +243,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			timeout_ms: z.number().optional().describe("Max wait time for next stop in ms. Default: 30000"),
 			thread_id: z.number().optional().describe("Thread ID to continue. Default: the thread that last stopped. Use debug_threads to list available threads."),
 		},
-		async ({ session_id, timeout_ms, thread_id }) => {
-			try {
-				const viewport = await sessionManager.continue(session_id, timeout_ms, thread_id);
-				return { content: [{ type: "text" as const, text: viewport }] };
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(({ session_id, timeout_ms, thread_id }) => sessionManager.continue(session_id, timeout_ms, thread_id)),
 	);
 
 	// Tool 5: debug_step
@@ -316,14 +256,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			count: z.number().optional().describe("Number of steps to take. Default: 1. Useful for stepping through loops without setting breakpoints."),
 			thread_id: z.number().optional().describe("Thread ID to step. Default: the thread that last stopped. Use debug_threads to list available threads."),
 		},
-		async ({ session_id, direction, count, thread_id }) => {
-			try {
-				const viewport = await sessionManager.step(session_id, direction, count, thread_id);
-				return { content: [{ type: "text" as const, text: viewport }] };
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(({ session_id, direction, count, thread_id }) => sessionManager.step(session_id, direction, count, thread_id)),
 	);
 
 	// Tool 6: debug_run_to
@@ -336,14 +269,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			line: z.number().describe("Target line number"),
 			timeout_ms: z.number().optional().describe("Max wait time in ms. Default: 30000"),
 		},
-		async ({ session_id, file, line, timeout_ms }) => {
-			try {
-				const viewport = await sessionManager.runTo(session_id, file, line, timeout_ms);
-				return { content: [{ type: "text" as const, text: viewport }] };
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(({ session_id, file, line, timeout_ms }) => sessionManager.runTo(session_id, file, line, timeout_ms)),
 	);
 
 	// Tool 7: debug_set_breakpoints
@@ -358,7 +284,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			session_id: z.string().describe("The active debug session"),
 			file: z.string().describe("Source file path"),
 			breakpoints: z
-				.array(BreakpointMcpSchema)
+				.array(BreakpointSchema)
 				.describe("Breakpoint definitions. REPLACES all existing breakpoints in this file. " + "To add a breakpoint without removing existing ones, include them all."),
 		},
 		async ({ session_id, file, breakpoints }) => {
@@ -376,14 +302,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 						return `  ${parts.join(" ")}`;
 					})
 					.join("\n");
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: `Set ${breakpoints.length} breakpoints in ${file}:\n${lines}`,
-						},
-					],
-				};
+				return textResponse(`Set ${breakpoints.length} breakpoints in ${file}:\n${lines}`);
 			} catch (err) {
 				return errorResponse(err);
 			}
@@ -414,9 +333,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 				await sessionManager.setExceptionBreakpoints(session_id, filters);
 				const available = sessionManager.getExceptionBreakpointFilters(session_id);
 				const filterList = available.map((f) => `  ${f.filter}: ${f.label}`).join("\n");
-				return {
-					content: [{ type: "text" as const, text: `Exception breakpoints set: ${filters.join(", ")}${filterList ? `\n\nAvailable filters:\n${filterList}` : ""}` }],
-				};
+				return textResponse(`Exception breakpoints set: ${filters.join(", ")}${filterList ? `\n\nAvailable filters:\n${filterList}` : ""}`);
 			} catch (err) {
 				return errorResponse(err);
 			}
@@ -434,7 +351,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			try {
 				const bpMap = sessionManager.listBreakpoints(session_id);
 				if (bpMap.size === 0) {
-					return { content: [{ type: "text" as const, text: "No breakpoints set." }] };
+					return textResponse("No breakpoints set.");
 				}
 				const lines: string[] = [];
 				for (const [file, bps] of bpMap) {
@@ -446,7 +363,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 						lines.push(`  Line ${bp.line}${extras ? ` (${extras})` : ""}`);
 					}
 				}
-				return { content: [{ type: "text" as const, text: lines.join("\n") }] };
+				return textResponse(lines.join("\n"));
 			} catch (err) {
 				return errorResponse(err);
 			}
@@ -465,14 +382,10 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			frame_index: z.number().optional().describe("Stack frame context: 0 = current frame (default), 1 = caller, 2 = caller's caller, etc."),
 			max_depth: z.number().optional().describe("Object expansion depth for the result. Default: 2"),
 		},
-		async ({ session_id, expression, frame_index, max_depth }) => {
-			try {
-				const result = await sessionManager.evaluate(session_id, expression, frame_index, max_depth);
-				return { content: [{ type: "text" as const, text: `${expression} = ${result}` }] };
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(async ({ session_id, expression, frame_index, max_depth }) => {
+			const result = await sessionManager.evaluate(session_id, expression, frame_index, max_depth);
+			return `${expression} = ${result}`;
+		}),
 	);
 
 	// Tool 11: debug_variables
@@ -486,14 +399,9 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			filter: z.string().optional().describe("Regex filter on variable names. E.g., '^user' to show only user-prefixed vars"),
 			max_depth: z.number().optional().describe("Object expansion depth. Default: 1"),
 		},
-		async ({ session_id, scope, frame_index, filter, max_depth }) => {
-			try {
-				const result = await sessionManager.getVariables(session_id, scope ?? "local", frame_index, filter, max_depth);
-				return { content: [{ type: "text" as const, text: result || "No variables found." }] };
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(async ({ session_id, scope, frame_index, filter, max_depth }) => {
+			return (await sessionManager.getVariables(session_id, scope ?? "local", frame_index, filter, max_depth)) || "No variables found.";
+		}),
 	);
 
 	// Tool 12: debug_stack_trace
@@ -505,14 +413,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			max_frames: z.number().optional().describe("Maximum frames to return. Default: 20"),
 			include_source: z.boolean().optional().describe("Include source context around each frame. Default: false"),
 		},
-		async ({ session_id, max_frames, include_source }) => {
-			try {
-				const result = await sessionManager.getStackTrace(session_id, max_frames, include_source);
-				return { content: [{ type: "text" as const, text: result }] };
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(({ session_id, max_frames, include_source }) => sessionManager.getStackTrace(session_id, max_frames, include_source)),
 	);
 
 	// Tool 13: debug_source
@@ -525,14 +426,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			start_line: z.number().optional().describe("Start of range. Default: 1"),
 			end_line: z.number().optional().describe("End of range. Default: start_line + 40"),
 		},
-		async ({ session_id, file, start_line, end_line }) => {
-			try {
-				const result = await sessionManager.getSource(session_id, file, start_line, end_line);
-				return { content: [{ type: "text" as const, text: result }] };
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(({ session_id, file, start_line, end_line }) => sessionManager.getSource(session_id, file, start_line, end_line)),
 	);
 
 	// Tool 14: debug_watch — add or remove watch expressions
@@ -548,14 +442,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			try {
 				const op = action ?? "add";
 				const confirmed = op === "remove" ? sessionManager.removeWatchExpressions(session_id, expressions) : sessionManager.addWatchExpressions(session_id, expressions);
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: `Watch expressions (${confirmed.length} total):\n${confirmed.map((e) => `  ${e}`).join("\n")}`,
-						},
-					],
-				};
+				return textResponse(`Watch expressions (${confirmed.length} total):\n${confirmed.map((e) => `  ${e}`).join("\n")}`);
 			} catch (err) {
 				return errorResponse(err);
 			}
@@ -574,14 +461,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			session_id: z.string().describe("The active debug session"),
 			format: z.enum(["summary", "detailed"]).optional().describe("Level of detail. 'summary' compresses older entries. 'detailed' includes timestamps and full observations. Default: 'summary'"),
 		},
-		async ({ session_id, format }) => {
-			try {
-				const log = sessionManager.getSessionLog(session_id, format);
-				return { content: [{ type: "text" as const, text: log || "No actions logged." }] };
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(async ({ session_id, format }) => sessionManager.getSessionLog(session_id, format) || "No actions logged."),
 	);
 
 	// Tool 16: debug_output
@@ -593,16 +473,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			stream: z.enum(["stdout", "stderr", "both"]).optional().describe("Which output stream. Default: 'both'"),
 			since_action: z.number().optional().describe("Only show output captured since action N. Default: 0 (all)"),
 		},
-		async ({ session_id, stream, since_action }) => {
-			try {
-				const output = sessionManager.getOutput(session_id, stream ?? "both", since_action ?? 0);
-				return {
-					content: [{ type: "text" as const, text: output || "No output captured." }],
-				};
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(async ({ session_id, stream, since_action }) => sessionManager.getOutput(session_id, stream ?? "both", since_action ?? 0) || "No output captured."),
 	);
 
 	// Tool 17: debug_attach
@@ -618,7 +489,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 			port: z.number().optional().describe("Debug server port. Python debugpy default: 5678. Node.js inspector default: 9229."),
 			host: z.string().optional().describe("Debug server host. Default: '127.0.0.1'"),
 			cwd: z.string().optional().describe("Working directory for source file resolution"),
-			breakpoints: z.array(FileBreakpointsMcpSchema).optional().describe("Breakpoints to set after attaching"),
+			breakpoints: z.array(FileBreakpointsSchema).optional().describe("Breakpoints to set after attaching"),
 			viewport_config: ViewportConfigSchema,
 		},
 		async ({ language, pid, port, host, cwd, breakpoints, viewport_config }) => {
@@ -633,14 +504,7 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 					viewportConfig: mapViewportConfig(viewport_config),
 				});
 
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: `Session: ${result.sessionId}\nStatus: ${result.status}\nAttached to ${language} process.`,
-						},
-					],
-				};
+				return textResponse(`Session: ${result.sessionId}\nStatus: ${result.status}\nAttached to ${language} process.`);
 			} catch (err) {
 				return errorResponse(err);
 			}
@@ -657,21 +521,10 @@ export function registerTools(server: McpServer, sessionManager: SessionManager)
 		{
 			session_id: z.string().describe("The active debug session"),
 		},
-		async ({ session_id }) => {
-			try {
-				const threads = await sessionManager.getThreads(session_id);
-				const lines = threads.map((t) => `  ${t.stopped ? "→" : " "} Thread ${t.id}: ${t.name}${t.stopped ? " (stopped)" : " (running)"}`);
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: `Threads (${threads.length}):\n${lines.join("\n")}`,
-						},
-					],
-				};
-			} catch (err) {
-				return errorResponse(err);
-			}
-		},
+		toolHandler(async ({ session_id }) => {
+			const threads = await sessionManager.getThreads(session_id);
+			const lines = threads.map((t) => `  ${t.stopped ? "→" : " "} Thread ${t.id}: ${t.name}${t.stopped ? " (stopped)" : " (running)"}`);
+			return `Threads (${threads.length}):\n${lines.join("\n")}`;
+		}),
 	);
 }

@@ -5,7 +5,7 @@ import { extname, join, resolve as resolvePath } from "node:path";
 import { promisify } from "node:util";
 import { getErrorMessage, LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { gracefulDispose } from "./helpers.js";
+import { checkCommand, detectEarlySpawnFailure, gracefulDispose } from "./helpers.js";
 
 const execAsync = promisify(exec);
 
@@ -60,19 +60,13 @@ export class SwiftAdapter implements DebugAdapter {
 	 * Check for swiftc and lldb-dap availability.
 	 */
 	async checkPrerequisites(): Promise<PrerequisiteResult> {
-		const swiftOk = await new Promise<boolean>((resolve) => {
-			const proc = spawn("swiftc", ["--version"], { stdio: "pipe" });
-			proc.on("close", (code) => resolve(code === 0));
-			proc.on("error", () => resolve(false));
+		const swiftc = await checkCommand({
+			cmd: "swiftc",
+			args: ["--version"],
+			missing: ["swiftc"],
+			installHint: "macOS: xcode-select --install. Linux: install from https://swift.org/download",
 		});
-
-		if (!swiftOk) {
-			return {
-				satisfied: false,
-				missing: ["swiftc"],
-				installHint: "macOS: xcode-select --install. Linux: install from https://swift.org/download",
-			};
-		}
+		if (!swiftc.satisfied) return swiftc;
 
 		const lldbDap = await findLldbDap();
 		if (!lldbDap) {
@@ -156,19 +150,7 @@ export class SwiftAdapter implements DebugAdapter {
 		});
 
 		// Wait briefly for early spawn failure
-		const earlyError = await new Promise<Error | null>((resolve) => {
-			child.on("error", (err) => resolve(new LaunchError(`Failed to spawn lldb-dap: ${err.message}`, stderrBuffer.join(""))));
-			child.on("close", (code) => {
-				if (code !== null && code !== 0) {
-					resolve(new LaunchError(`lldb-dap exited with code ${code}. stderr: ${stderrBuffer.join("")}`, stderrBuffer.join("")));
-				} else {
-					resolve(null);
-				}
-			});
-			setTimeout(() => resolve(null), 500);
-		});
-
-		if (earlyError) throw earlyError;
+		await detectEarlySpawnFailure(child, "lldb-dap", stderrBuffer, 500);
 		if (!child.stdout || !child.stdin) throw new LaunchError("lldb-dap stdio not available");
 
 		return {
@@ -204,19 +186,7 @@ export class SwiftAdapter implements DebugAdapter {
 			stderrBuffer.push(data.toString());
 		});
 
-		const earlyError = await new Promise<Error | null>((resolve) => {
-			child.on("error", (err) => resolve(new LaunchError(`Failed to spawn lldb-dap: ${err.message}`)));
-			child.on("close", (code) => {
-				if (code !== null && code !== 0) {
-					resolve(new LaunchError(`lldb-dap exited with code ${code}. stderr: ${stderrBuffer.join("")}`));
-				} else {
-					resolve(null);
-				}
-			});
-			setTimeout(() => resolve(null), 500);
-		});
-
-		if (earlyError) throw earlyError;
+		await detectEarlySpawnFailure(child, "lldb-dap", stderrBuffer, 500);
 		if (!child.stdout || !child.stdin) throw new LaunchError("lldb-dap stdio not available");
 
 		return {

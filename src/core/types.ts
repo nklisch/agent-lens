@@ -13,13 +13,42 @@ export const ViewportConfigSchema = z.object({
 
 export type ViewportConfig = z.infer<typeof ViewportConfigSchema>;
 
+/**
+ * Map the MCP tool's snake_case viewport_config input to the camelCase
+ * ViewportConfig expected by SessionManager. Returns undefined if not provided.
+ * Note: the MCP ViewportConfigSchema uses snake_case keys while the core schema
+ * uses camelCase — this function bridges that intentional divergence.
+ */
+export function mapViewportConfig(
+	viewport_config:
+		| {
+				source_context_lines?: number;
+				stack_depth?: number;
+				locals_max_depth?: number;
+				locals_max_items?: number;
+				string_truncate_length?: number;
+				collection_preview_items?: number;
+		  }
+		| undefined,
+): Partial<ViewportConfig> | undefined {
+	if (!viewport_config) return undefined;
+	return {
+		sourceContextLines: viewport_config.source_context_lines,
+		stackDepth: viewport_config.stack_depth,
+		localsMaxDepth: viewport_config.locals_max_depth,
+		localsMaxItems: viewport_config.locals_max_items,
+		stringTruncateLength: viewport_config.string_truncate_length,
+		collectionPreviewItems: viewport_config.collection_preview_items,
+	};
+}
+
 // --- Breakpoints ---
 
 export const BreakpointSchema = z.object({
-	line: z.number(),
-	condition: z.string().optional(),
-	hitCondition: z.string().optional(),
-	logMessage: z.string().optional(),
+	line: z.number().describe("Line number"),
+	condition: z.string().optional().describe("Expression that must be true to trigger. E.g., 'discount < 0'"),
+	hitCondition: z.string().optional().describe("Break after N hits. E.g., '>=100'"),
+	logMessage: z.string().optional().describe("Log instead of breaking. Supports {expression} interpolation."),
 });
 
 export type Breakpoint = z.infer<typeof BreakpointSchema>;
@@ -29,7 +58,7 @@ export type Breakpoint = z.infer<typeof BreakpointSchema>;
  * Used by both the daemon protocol and MCP tools.
  */
 export const FileBreakpointsSchema = z.object({
-	file: z.string(),
+	file: z.string().describe("Source file path (relative or absolute)"),
 	breakpoints: z.array(BreakpointSchema),
 });
 
