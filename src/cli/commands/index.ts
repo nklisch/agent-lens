@@ -82,7 +82,7 @@ async function resolveSessionId(client: DaemonClient, explicitSession?: string):
 	const sessions = await client.call<Array<{ id: string; status: string; language: string; actionCount: number }>>("daemon.sessions");
 
 	if (sessions.length === 0) {
-		throw new Error('No active sessions. Launch one with: agent-lens launch "<command>"');
+		throw new Error('No active sessions. Launch one with: bugscope launch "<command>"');
 	}
 
 	if (sessions.length === 1) {
@@ -222,7 +222,7 @@ export const launchCommand = defineCommand({
 					}
 				} else {
 					if (!args.command) {
-						throw new Error('Usage: agent-lens launch "<command>" or agent-lens launch --config-name "<name>"');
+						throw new Error('Usage: bugscope launch "<command>" or bugscope launch --config-name "<name>"');
 					}
 					const result = await client.call<LaunchResultPayload>("session.launch", {
 						command: args.command,
@@ -390,7 +390,7 @@ export const breakCommand = defineCommand({
 				});
 				process.stdout.write(`${formatBreakpointsSet(parsed.file, result, mode)}\n`);
 			} else {
-				throw new Error("Usage: agent-lens break <file:line> | --exceptions <filter> | --clear <file>");
+				throw new Error("Usage: bugscope break <file:line> | --exceptions <filter> | --clear <file>");
 			}
 		});
 	},

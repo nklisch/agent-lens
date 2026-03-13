@@ -3,10 +3,10 @@ import { z } from "zod";
 // --- Run Mode ---
 
 /**
- * How agent-lens is exposed to the agent under test.
- * - "mcp"      — agent-lens MCP server configured; agent uses debug_* MCP tools
- * - "cli"      — no MCP server, but agent-lens CLI + skill file available; agent uses bash
- * - "baseline" — no agent-lens at all; agent relies on code reading and test output
+ * How bugscope is exposed to the agent under test.
+ * - "mcp"      — bugscope MCP server configured; agent uses debug_* MCP tools
+ * - "cli"      — no MCP server, but bugscope CLI + skill file available; agent uses bash
+ * - "baseline" — no bugscope at all; agent relies on code reading and test output
  */
 export type RunMode = "mcp" | "cli" | "baseline";
 
@@ -151,7 +151,7 @@ export interface ValidationResult {
 export interface RunResult {
 	/** Scenario name */
 	scenario: string;
-	/** Run mode — "tools" had agent-lens MCP available, "baseline" did not */
+	/** Run mode — "tools" had bugscope MCP available, "baseline" did not */
 	mode: RunMode;
 	/** Scenario metadata for self-contained reports */
 	scenarioMeta: {
@@ -173,7 +173,7 @@ export interface RunResult {
 	/** Extracted metrics */
 	metrics: AgentMetrics;
 	/** Agent-lens version used */
-	agentLensVersion: string;
+	bugscopeVersion: string;
 	/** Visible test pass/fail before agent ran */
 	visibleTestBefore: boolean;
 	/** Visible test pass/fail after agent ran */

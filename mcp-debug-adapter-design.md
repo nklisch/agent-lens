@@ -1,4 +1,4 @@
-# Agent Lens — Design Document
+# Bugscope — Design Document
 
 **Runtime Debugging Viewport for AI Coding Agents**
 
@@ -10,7 +10,7 @@ Version 1.0 — March 2026 | Draft
 
 AI coding agents such as Claude Code and Codex currently debug software through static code analysis and trial-and-error test execution. They lack the ability to inspect runtime state, set breakpoints, or step through executing code. This makes entire categories of bugs—incorrect runtime values, unexpected mutations, race conditions, off-by-one errors deep in call chains—significantly harder to diagnose.
 
-This document specifies **Agent Lens**, a Model Context Protocol (MCP) server that exposes a language-agnostic debugging interface to AI agents. The server translates MCP tool calls into Debug Adapter Protocol (DAP) messages, enabling any DAP-compatible debugger to be used by any MCP-compatible agent without either side needing awareness of the other.
+This document specifies **Bugscope**, a Model Context Protocol (MCP) server that exposes a language-agnostic debugging interface to AI agents. The server translates MCP tool calls into Debug Adapter Protocol (DAP) messages, enabling any DAP-compatible debugger to be used by any MCP-compatible agent without either side needing awareness of the other.
 
 The design prioritizes three qualities: a **compact default viewport** that minimizes token consumption per debug step, a **drill-down-on-demand** pattern that lets the agent selectively expand its view, and a **pluggable adapter layer** that makes adding new languages a bounded, well-defined task.
 
@@ -90,11 +90,11 @@ A typical interaction follows this sequence:
            │ MCP (stdio / SSE)            │ bash / shell
            ▼                              ▼
 ┌─────────────────────────────────────────────────────────┐
-│                       agent-lens                         │
+│                       bugscope                         │
 │  ┌────────────────────┐    ┌─────────────────────────┐  │
 │  │  MCP Server        │    │  CLI                     │  │
-│  │  (tool interface)  │    │  agent-lens launch ...   │  │
-│  │                    │    │  agent-lens step ...     │  │
+│  │  (tool interface)  │    │  bugscope launch ...   │  │
+│  │                    │    │  bugscope step ...     │  │
 │  └─────────┬──────────┘    └────────────┬────────────┘  │
 │            └──────────┬─────────────────┘               │
 │  ┌────────────────────┴──────────────────────────────┐  │
@@ -451,13 +451,13 @@ Retrieve captured stdout/stderr from the debugee process.
 
 ## 6. CLI Interface
 
-Agent Lens provides a complete CLI that mirrors every MCP tool as a shell command. This enables two integration paths: agents that support MCP connect via the MCP server, while agents that are good at bash (or humans who want a better debugging UX) use the CLI directly. Both interfaces share the same core — identical viewport rendering, session management, and adapter layer.
+Bugscope provides a complete CLI that mirrors every MCP tool as a shell command. This enables two integration paths: agents that support MCP connect via the MCP server, while agents that are good at bash (or humans who want a better debugging UX) use the CLI directly. Both interfaces share the same core — identical viewport rendering, session management, and adapter layer.
 
 ### 6.1 Why Both Interfaces
 
 **MCP path:** Install as an MCP server, the agent discovers tools automatically via MCP tool listing. Best for agents with native MCP support (Claude Code with MCP config, Cursor, etc.). Zero prompting needed — the tool descriptions guide the agent.
 
-**CLI path:** Install via `npx agent-lens`, `bunx agent-lens`, or download the compiled single-file binary from GitHub releases (built with `bun build --compile` — zero runtime dependencies). Load a skill/instruction file that teaches the agent the commands. Best for agents that are already good at bash (Claude Code, Codex), for CI/CD integration, for human debugging, and for environments where MCP setup is inconvenient. No server lifecycle to manage — each command is stateless from the shell's perspective (sessions are managed by a lightweight background daemon).
+**CLI path:** Install via `npx bugscope`, `bunx bugscope`, or download the compiled single-file binary from GitHub releases (built with `bun build --compile` — zero runtime dependencies). Load a skill/instruction file that teaches the agent the commands. Best for agents that are already good at bash (Claude Code, Codex), for CI/CD integration, for human debugging, and for environments where MCP setup is inconvenient. No server lifecycle to manage — each command is stateless from the shell's perspective (sessions are managed by a lightweight background daemon).
 
 The CLI is not a secondary interface. It's a first-class path designed so that an agent with nothing more than bash access and a one-paragraph skill description can debug as effectively as one using MCP.
 
@@ -469,184 +469,184 @@ Every command outputs the viewport to stdout as structured plain text (the same 
 
 ```bash
 # Launch a debug session with initial breakpoints
-agent-lens launch "python app.py" \
+bugscope launch "python app.py" \
   --break order.py:147 \
   --break discount.py:23 \
   --stop-on-entry
 
 # Launch with a conditional breakpoint
-agent-lens launch "python -m pytest tests/test_order.py -x" \
+bugscope launch "python -m pytest tests/test_order.py -x" \
   --break "order.py:147 when discount < 0"
 
 # Launch with language override
-agent-lens launch "cargo test" --language rust
+bugscope launch "cargo test" --language rust
 
 # Check session status
-agent-lens status
+bugscope status
 
 # Stop the active session
-agent-lens stop
+bugscope stop
 
 # Stop a specific session
-agent-lens stop --session abc123
+bugscope stop --session abc123
 ```
 
 #### Execution Control
 
 ```bash
 # Continue to next breakpoint
-agent-lens continue
+bugscope continue
 
 # Step over / into / out
-agent-lens step over
-agent-lens step into
-agent-lens step out
+bugscope step over
+bugscope step into
+bugscope step out
 
 # Step multiple times
-agent-lens step over --count 5
+bugscope step over --count 5
 
 # Run to a specific line
-agent-lens run-to order.py:150
+bugscope run-to order.py:150
 
 # Continue with a timeout
-agent-lens continue --timeout 10000
+bugscope continue --timeout 10000
 ```
 
 #### Breakpoint Management
 
 ```bash
 # Set breakpoints (replaces existing in that file)
-agent-lens break order.py:147
-agent-lens break order.py:147,150,155
+bugscope break order.py:147
+bugscope break order.py:147,150,155
 
 # Conditional breakpoints
-agent-lens break "order.py:147 when discount < 0"
-agent-lens break "order.py:147 hit >=100"
+bugscope break "order.py:147 when discount < 0"
+bugscope break "order.py:147 hit >=100"
 
 # Log points (log instead of breaking)
-agent-lens break "order.py:147 log 'discount={discount}, total={total}'"
+bugscope break "order.py:147 log 'discount={discount}, total={total}'"
 
 # Exception breakpoints
-agent-lens break --exceptions uncaught
-agent-lens break --exceptions raised    # Python: all raised exceptions
+bugscope break --exceptions uncaught
+bugscope break --exceptions raised    # Python: all raised exceptions
 
 # List all breakpoints
-agent-lens breakpoints
+bugscope breakpoints
 
 # Remove breakpoints from a file
-agent-lens break --clear order.py
+bugscope break --clear order.py
 ```
 
 #### State Inspection
 
 ```bash
 # Evaluate an expression in current frame
-agent-lens eval "cart.items[0].__dict__"
-agent-lens eval "len(results)" --depth 3
+bugscope eval "cart.items[0].__dict__"
+bugscope eval "len(results)" --depth 3
 
 # Evaluate in a different stack frame
-agent-lens eval "request.headers" --frame 2
+bugscope eval "request.headers" --frame 2
 
 # Show variables (current frame locals by default)
-agent-lens vars
-agent-lens vars --scope global
-agent-lens vars --scope closure
-agent-lens vars --filter "^user"
+bugscope vars
+bugscope vars --scope global
+bugscope vars --scope closure
+bugscope vars --filter "^user"
 
 # Full stack trace
-agent-lens stack
-agent-lens stack --frames 20 --source
+bugscope stack
+bugscope stack --frames 20 --source
 
 # View source for any file
-agent-lens source discount.py
-agent-lens source discount.py:15-30
+bugscope source discount.py
+bugscope source discount.py:15-30
 ```
 
 #### Session Intelligence
 
 ```bash
 # Add watch expressions
-agent-lens watch "len(cart.items)" "user.tier" "total > 0"
+bugscope watch "len(cart.items)" "user.tier" "total > 0"
 
 # View the session investigation log
-agent-lens log
-agent-lens log --detailed
+bugscope log
+bugscope log --detailed
 
 # View captured program output
-agent-lens output
-agent-lens output --stderr
-agent-lens output --since-action 5
+bugscope output
+bugscope output --stderr
+bugscope output --since-action 5
 ```
 
 #### Utility
 
 ```bash
 # Check which adapters/debuggers are available
-agent-lens doctor
+bugscope doctor
 
 # Show version and config
-agent-lens --version
+bugscope --version
 
 # JSON output mode (for programmatic consumption)
-agent-lens launch "python app.py" --break order.py:147 --json
+bugscope launch "python app.py" --break order.py:147 --json
 
 # Quiet mode (viewport only, no chrome)
-agent-lens continue --quiet
+bugscope continue --quiet
 ```
 
 ### 6.3 Session Daemon
 
-The CLI manages sessions via a lightweight background daemon that starts automatically on the first `agent-lens launch` and shuts down after the last session ends (or after an idle timeout). This allows sequential commands to operate on a persistent debug session without the user managing server lifecycle:
+The CLI manages sessions via a lightweight background daemon that starts automatically on the first `bugscope launch` and shuts down after the last session ends (or after an idle timeout). This allows sequential commands to operate on a persistent debug session without the user managing server lifecycle:
 
 ```bash
 # These are separate shell commands that share a session:
-agent-lens launch "python app.py" --break order.py:147
+bugscope launch "python app.py" --break order.py:147
 # daemon starts, session created, viewport printed
 
-agent-lens continue
+bugscope continue
 # daemon already running, continues the existing session
 
-agent-lens eval "discount"
+bugscope eval "discount"
 # evaluates in the stopped session
 
-agent-lens stop
+bugscope stop
 # session ends, daemon idles then shuts down
 ```
 
-The daemon listens on a Unix domain socket at `$XDG_RUNTIME_DIR/agent-lens.sock` (or `~/.agent-lens/agent-lens.sock` as fallback). Multiple concurrent sessions are supported — when more than one session is active, commands require `--session <id>` to disambiguate.
+The daemon listens on a Unix domain socket at `$XDG_RUNTIME_DIR/bugscope.sock` (or `~/.bugscope/bugscope.sock` as fallback). Multiple concurrent sessions are supported — when more than one session is active, commands require `--session <id>` to disambiguate.
 
 ### 6.4 Agent Skill File
 
-For agents that use the CLI path, a skill file teaches the agent how to use Agent Lens. This can be loaded as a Claude Code skill, a Codex system prompt addition, or any agent's instruction set:
+For agents that use the CLI path, a skill file teaches the agent how to use Bugscope. This can be loaded as a Claude Code skill, a Codex system prompt addition, or any agent's instruction set:
 
 ```markdown
-# Agent Lens — Debugging Skill
+# Bugscope — Debugging Skill
 
-You have access to `agent-lens`, a CLI debugger. Use it when you need to
+You have access to `bugscope`, a CLI debugger. Use it when you need to
 inspect runtime state to diagnose a bug — especially when static code
 reading and test output aren't enough to identify the root cause.
 
 ## Quick start
-  agent-lens launch "<command>" --break <file>:<line>
-  agent-lens continue          # run to next breakpoint
-  agent-lens step into|over|out
-  agent-lens eval "<expr>"     # evaluate expression at current stop
-  agent-lens vars              # show local variables
-  agent-lens stop              # end session
+  bugscope launch "<command>" --break <file>:<line>
+  bugscope continue          # run to next breakpoint
+  bugscope step into|over|out
+  bugscope eval "<expr>"     # evaluate expression at current stop
+  bugscope vars              # show local variables
+  bugscope stop              # end session
 
 ## Conditional breakpoints
-  agent-lens break "<file>:<line> when <condition>"
+  bugscope break "<file>:<line> when <condition>"
 
 ## Strategy
 1. Start by setting a breakpoint where you expect the bug to manifest.
 2. Inspect locals. Look for unexpected values.
 3. If the bad value came from a function call, set a breakpoint inside
    that function and re-launch.
-4. Use `agent-lens eval` to test hypotheses without modifying code.
+4. Use `bugscope eval` to test hypotheses without modifying code.
 5. Once you identify the root cause, stop the session and fix the code.
 
 ## Key rules
-- Always call `agent-lens stop` when done to clean up.
+- Always call `bugscope stop` when done to clean up.
 - Prefer conditional breakpoints over stepping through loops.
 - Each command prints a viewport showing source, locals, and stack.
 - If a session times out (5 min default), re-launch.
@@ -1056,7 +1056,7 @@ Total debug actions: 8. Total tokens for viewports: ~2,400. Time to root cause: 
 The same discount bug from Appendix B, diagnosed via the CLI by an agent with bash access and the skill file loaded:
 
 ```bash
-$ agent-lens launch "python -m pytest tests/test_order.py::test_gold_discount -x" \
+$ bugscope launch "python -m pytest tests/test_order.py::test_gold_discount -x" \
     --break order.py:147
 
 Session started: abc123
@@ -1096,24 +1096,24 @@ Locals:
 Agent sees `discount = -149.97` and wants to inspect the function that produced it:
 
 ```bash
-$ agent-lens stop
-$ agent-lens launch "python -m pytest tests/test_order.py::test_gold_discount -x" \
+$ bugscope stop
+$ bugscope launch "python -m pytest tests/test_order.py::test_gold_discount -x" \
     --break order.py:143
 
 ── STOPPED at order.py:143 (process_order) ──
 ...
 
-$ agent-lens step into
+$ bugscope step into
 
 ── STOPPED at discount.py:15 (calculate_discount) ──
 Locals:
   user      = <User: tier="gold">
   subtotal  = 149.97
 
-$ agent-lens break "discount.py:23 when tier == 'gold'"
+$ bugscope break "discount.py:23 when tier == 'gold'"
 Breakpoint set: discount.py:23 (conditional: tier == 'gold')
 
-$ agent-lens continue
+$ bugscope continue
 
 ── STOPPED at discount.py:23 (calculate_discount) ──
 Reason: conditional breakpoint
@@ -1123,10 +1123,10 @@ Locals:
   base_rate         = 1.0
   discount_amount   = 149.97
 
-$ agent-lens eval "tier_multipliers"
+$ bugscope eval "tier_multipliers"
 {"bronze": 0.05, "silver": 0.1, "gold": 1.0, "platinum": 0.2}
 
-$ agent-lens stop
+$ bugscope stop
 Session abc123 ended. Duration: 12s, Actions: 6
 ```
 

@@ -17,7 +17,7 @@ registerAllDetectors();
 const sessionManager = createSessionManager();
 
 const server = new McpServer({
-	name: "agent-lens",
+	name: "bugscope",
 	version: "0.1.0",
 });
 
@@ -25,7 +25,7 @@ registerTools(server, sessionManager);
 
 // Browser investigation tools — instantiate QueryEngine pointing at the shared database.
 // BrowserDatabase creates the file and schema if it doesn't exist, so this is always safe.
-const browserDataDir = process.env.AGENT_LENS_BROWSER_DATA_DIR ?? resolve(homedir(), ".agent-lens", "browser");
+const browserDataDir = process.env.BUGSCOPE_BROWSER_DATA_DIR ?? resolve(homedir(), ".bugscope", "browser");
 mkdirSync(browserDataDir, { recursive: true });
 const browserDb = new BrowserDatabase(resolve(browserDataDir, "index.db"));
 const browserQueryEngine = new QueryEngine(browserDb, browserDataDir);

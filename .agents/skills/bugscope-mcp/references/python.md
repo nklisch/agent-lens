@@ -3,7 +3,7 @@
 ## Prerequisites
 ```sh
 pip install debugpy
-agent-lens doctor  # verifies debugpy is available
+bugscope doctor  # verifies debugpy is available
 ```
 
 ## Launch

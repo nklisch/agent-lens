@@ -1,8 +1,8 @@
-# Agent Lens
+# Bugscope
 
 **Runtime debugging for AI coding agents.**
 
-Agent Lens is an MCP server and CLI that gives AI coding agents the ability to set breakpoints, step through code, and inspect runtime state. It bridges the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) to the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) (DAP), wrapping raw debugger state in a compact viewport optimized for LLM consumption.
+Bugscope is an MCP server and CLI that gives AI coding agents the ability to set breakpoints, step through code, and inspect runtime state. It bridges the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) to the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) (DAP), wrapping raw debugger state in a compact viewport optimized for LLM consumption.
 
 ## Supported Languages
 
@@ -24,9 +24,9 @@ Add to your agent's MCP config (e.g. Claude Code `settings.json`):
 ```json
 {
   "mcpServers": {
-    "agent-lens": {
+    "bugscope": {
       "command": "bunx",
-      "args": ["agent-lens", "--mcp"]
+      "args": ["bugscope", "--mcp"]
     }
   }
 }
@@ -36,16 +36,16 @@ Add to your agent's MCP config (e.g. Claude Code `settings.json`):
 
 ```bash
 # Launch a program and break at a specific line
-agent-lens launch "python app.py" --break order.py:147
+bugscope launch "python app.py" --break order.py:147
 
 # Step through and inspect
-agent-lens step over
-agent-lens eval "discount"
-agent-lens vars --scope local
+bugscope step over
+bugscope eval "discount"
+bugscope vars --scope local
 
 # Continue and stop
-agent-lens continue
-agent-lens stop
+bugscope continue
+bugscope stop
 ```
 
 ### Skill File
@@ -53,13 +53,13 @@ agent-lens stop
 Install the agent skill for CLI-based workflows:
 
 ```bash
-agent-lens skill          # Print skill to stdout
+bugscope skill          # Print skill to stdout
 skilltap install ./skill  # Or install via skilltap
 ```
 
 ## MCP Tools
 
-Agent Lens exposes 18 tools over MCP, each with a matching CLI command:
+Bugscope exposes 18 tools over MCP, each with a matching CLI command:
 
 | Tool | Description |
 |------|-------------|
@@ -114,11 +114,11 @@ bun run test:e2e         # E2E tests (full MCP path)
 bun run test:agent       # Agent harness scenarios
 ```
 
-Integration and E2E tests require debuggers to be installed. Run `agent-lens doctor` to check availability. Tests skip cleanly per-adapter when a debugger is not found.
+Integration and E2E tests require debuggers to be installed. Run `bugscope doctor` to check availability. Tests skip cleanly per-adapter when a debugger is not found.
 
 ### Agent Harness
 
-The agent harness (`tests/agent-harness/`) is a scenario-based test suite for evaluating how well agents debug with Agent Lens. It contains 35 scenarios across 3 languages at 5 difficulty levels:
+The agent harness (`tests/agent-harness/`) is a scenario-based test suite for evaluating how well agents debug with Bugscope. It contains 35 scenarios across 3 languages at 5 difficulty levels:
 
 - **Python** — 12 scenarios (closure bugs, mutation errors, float accumulation, deep pipelines)
 - **Node.js** — 11 scenarios (async races, event loop ordering, regex state, `this` binding)

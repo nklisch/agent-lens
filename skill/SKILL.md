@@ -1,17 +1,17 @@
 ---
-name: agent-lens
-description: Use when a test fails and reading the code isn't enough to find why. agent-lens gives you a live debugger: set breakpoints, inspect variables, evaluate expressions, and step through execution in Python, JavaScript/TypeScript, Go, Rust, C/C++, and Java. Reach for it when you've read the code and still can't tell what value a variable has at runtime, when the bug is in logic you can't trace statically (closures, async, pipelines, type coercions), or when you need to verify a hypothesis before editing.
+name: bugscope
+description: Use when a test fails and reading the code isn't enough to find why. bugscope gives you a live debugger: set breakpoints, inspect variables, evaluate expressions, and step through execution in Python, JavaScript/TypeScript, Go, Rust, C/C++, and Java. Reach for it when you've read the code and still can't tell what value a variable has at runtime, when the bug is in logic you can't trace statically (closures, async, pipelines, type coercions), or when you need to verify a hypothesis before editing.
 license: MIT
 compatibility: Requires debugger binaries for the target language (e.g., debugpy for Python, dlv for Go). Works with any MCP-compatible agent or via CLI.
 metadata:
-  author: agent-lens
+  author: bugscope
   version: "0.1"
-allowed-tools: Bash(agent-lens:*)
+allowed-tools: Bash(bugscope:*)
 ---
 
-# Agent Lens — Runtime Debugging
+# Bugscope — Runtime Debugging
 
-Use agent-lens when you need to inspect runtime state to diagnose a bug — especially when static code reading and test output aren't enough to identify the root cause.
+Use bugscope when you need to inspect runtime state to diagnose a bug — especially when static code reading and test output aren't enough to identify the root cause.
 
 ## When to use
 
@@ -22,7 +22,7 @@ Use agent-lens when you need to inspect runtime state to diagnose a bug — espe
 
 ## MCP tools
 
-If agent-lens is registered as an MCP server, use these tools directly:
+If bugscope is registered as an MCP server, use these tools directly:
 
 | Tool | Purpose |
 |------|---------|
@@ -61,15 +61,15 @@ debug_stop({ session_id: "..." })
 
 ## CLI commands
 
-If using agent-lens via CLI:
+If using bugscope via CLI:
 
 ```bash
-agent-lens launch "python3 -m pytest test_discount.py -x" --break discount.py:12
-agent-lens eval "rate"
-agent-lens vars
-agent-lens step over
-agent-lens continue
-agent-lens stop
+bugscope launch "python3 -m pytest test_discount.py -x" --break discount.py:12
+bugscope eval "rate"
+bugscope vars
+bugscope step over
+bugscope continue
+bugscope stop
 ```
 
 See [references/cli.md](references/cli.md) for the full command reference.

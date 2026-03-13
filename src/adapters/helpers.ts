@@ -214,10 +214,10 @@ export function connectTCP(host: string, port: number, maxRetries = 3, retryDela
 }
 
 /**
- * Returns the cache directory for a named adapter under ~/.agent-lens/adapters/<adapterName>.
+ * Returns the cache directory for a named adapter under ~/.bugscope/adapters/<adapterName>.
  */
 export function getAdapterCacheDir(adapterName: string): string {
-	return join(homedir(), ".agent-lens", "adapters", adapterName);
+	return join(homedir(), ".bugscope", "adapters", adapterName);
 }
 
 /**

@@ -78,7 +78,7 @@ interface ReactDevtoolsGlobalHook {
 
 	// ---- Our extensions (not part of React's contract) ----
 
-	/** Agent Lens observer callback registration. */
+	/** Bugscope observer callback registration. */
 	_blObserver?: ReactObserverCallbacks;
 }
 

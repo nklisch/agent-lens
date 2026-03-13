@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { connect } from "node:net";
-import { AgentLensError } from "../core/errors.js";
+import { BugscopeError } from "../core/errors.js";
 import type { JsonRpcResponse } from "./protocol.js";
 
 export interface DaemonClientOptions {
@@ -59,7 +59,7 @@ export class DaemonClient {
 					try {
 						const response = JSON.parse(line) as JsonRpcResponse;
 						if (response.error) {
-							const err = new AgentLensError(response.error.message, String(response.error.code));
+							const err = new BugscopeError(response.error.message, String(response.error.code));
 							reject(err);
 						} else {
 							resolve(response.result as T);
@@ -74,7 +74,7 @@ export class DaemonClient {
 				if (timedOut) return;
 				clearTimeout(timer);
 				if (err.code === "ECONNREFUSED" || err.code === "ENOENT") {
-					reject(new Error(`Daemon is not running. Start it with the first agent-lens command.`));
+					reject(new Error(`Daemon is not running. Start it with the first bugscope command.`));
 				} else {
 					reject(err);
 				}

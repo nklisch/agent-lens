@@ -4,7 +4,7 @@
 js-debug is bundled — no install needed. Node.js must be in PATH.
 
 ```sh
-agent-lens doctor  # verify
+bugscope doctor  # verify
 ```
 
 ## Launch

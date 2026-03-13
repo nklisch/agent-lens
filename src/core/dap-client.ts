@@ -109,8 +109,8 @@ export class DAPClient {
 	 */
 	async initialize(): Promise<DebugProtocol.Capabilities> {
 		const response = await this.send<DebugProtocol.InitializeResponse>("initialize", {
-			clientID: "agent-lens",
-			adapterID: "agent-lens",
+			clientID: "bugscope",
+			adapterID: "bugscope",
 			supportsVariableType: true,
 			linesStartAt1: true,
 			columnsStartAt1: true,

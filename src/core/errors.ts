@@ -6,22 +6,22 @@ export function getErrorMessage(err: unknown): string {
 }
 
 /**
- * Base error for all Agent Lens errors.
+ * Base error for all Bugscope errors.
  */
-export class AgentLensError extends Error {
+export class BugscopeError extends Error {
 	constructor(
 		message: string,
 		public readonly code: string,
 	) {
 		super(message);
-		this.name = "AgentLensError";
+		this.name = "BugscopeError";
 	}
 }
 
 /**
  * DAP request timed out.
  */
-export class DAPTimeoutError extends AgentLensError {
+export class DAPTimeoutError extends BugscopeError {
 	constructor(
 		public readonly command: string,
 		public readonly timeoutMs: number,
@@ -34,7 +34,7 @@ export class DAPTimeoutError extends AgentLensError {
 /**
  * DAP client has been disposed.
  */
-export class DAPClientDisposedError extends AgentLensError {
+export class DAPClientDisposedError extends BugscopeError {
 	constructor() {
 		super("DAP client has been disposed", "DAP_DISPOSED");
 		this.name = "DAPClientDisposedError";
@@ -44,7 +44,7 @@ export class DAPClientDisposedError extends AgentLensError {
 /**
  * DAP connection failed.
  */
-export class DAPConnectionError extends AgentLensError {
+export class DAPConnectionError extends BugscopeError {
 	constructor(
 		public readonly host: string,
 		public readonly port: number,
@@ -58,7 +58,7 @@ export class DAPConnectionError extends AgentLensError {
 /**
  * Session not found.
  */
-export class SessionNotFoundError extends AgentLensError {
+export class SessionNotFoundError extends BugscopeError {
 	constructor(public readonly sessionId: string) {
 		super(`No debug session with id: ${sessionId}`, "SESSION_NOT_FOUND");
 		this.name = "SessionNotFoundError";
@@ -68,7 +68,7 @@ export class SessionNotFoundError extends AgentLensError {
 /**
  * Session is in an invalid state for the requested operation.
  */
-export class SessionStateError extends AgentLensError {
+export class SessionStateError extends BugscopeError {
 	constructor(
 		public readonly sessionId: string,
 		public readonly currentState: string,
@@ -82,7 +82,7 @@ export class SessionStateError extends AgentLensError {
 /**
  * Session resource limit exceeded.
  */
-export class SessionLimitError extends AgentLensError {
+export class SessionLimitError extends BugscopeError {
 	constructor(
 		public readonly limitName: string,
 		public readonly currentValue: number,
@@ -97,7 +97,7 @@ export class SessionLimitError extends AgentLensError {
 /**
  * Adapter prerequisites not met.
  */
-export class AdapterPrerequisiteError extends AgentLensError {
+export class AdapterPrerequisiteError extends BugscopeError {
 	constructor(
 		public readonly adapterId: string,
 		public readonly missing: string[],
@@ -111,7 +111,7 @@ export class AdapterPrerequisiteError extends AgentLensError {
 /**
  * No adapter found for the given language or file extension.
  */
-export class AdapterNotFoundError extends AgentLensError {
+export class AdapterNotFoundError extends BugscopeError {
 	constructor(public readonly languageOrExt: string) {
 		super(`No debug adapter found for '${languageOrExt}'. Available adapters can be checked with debug_status.`, "ADAPTER_NOT_FOUND");
 		this.name = "AdapterNotFoundError";
@@ -121,7 +121,7 @@ export class AdapterNotFoundError extends AgentLensError {
 /**
  * Debugee process launch failed.
  */
-export class LaunchError extends AgentLensError {
+export class LaunchError extends BugscopeError {
 	constructor(
 		message: string,
 		public readonly stderr?: string,
@@ -134,7 +134,7 @@ export class LaunchError extends AgentLensError {
 /**
  * Chrome executable not found.
  */
-export class ChromeNotFoundError extends AgentLensError {
+export class ChromeNotFoundError extends BugscopeError {
 	constructor() {
 		super("Chrome not found. Install Chrome or use --attach to connect to an existing instance.", "CHROME_NOT_FOUND");
 		this.name = "ChromeNotFoundError";
@@ -144,7 +144,7 @@ export class ChromeNotFoundError extends AgentLensError {
 /**
  * Chrome CDP connection failed (WebSocket or HTTP endpoint unavailable).
  */
-export class CDPConnectionError extends AgentLensError {
+export class CDPConnectionError extends BugscopeError {
 	constructor(
 		message: string,
 		public readonly cause?: Error,
@@ -157,7 +157,7 @@ export class CDPConnectionError extends AgentLensError {
 /**
  * Browser tab not found by targetId.
  */
-export class TabNotFoundError extends AgentLensError {
+export class TabNotFoundError extends BugscopeError {
 	constructor(public readonly targetId: string) {
 		super(`Tab not found: ${targetId}`, "TAB_NOT_FOUND");
 		this.name = "TabNotFoundError";
@@ -167,7 +167,7 @@ export class TabNotFoundError extends AgentLensError {
 /**
  * Browser recorder is in an invalid state for the requested operation.
  */
-export class BrowserRecorderStateError extends AgentLensError {
+export class BrowserRecorderStateError extends BugscopeError {
 	constructor(message: string) {
 		super(message, "BROWSER_RECORDER_STATE");
 		this.name = "BrowserRecorderStateError";

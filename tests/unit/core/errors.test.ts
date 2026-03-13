@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	AdapterNotFoundError,
 	AdapterPrerequisiteError,
-	AgentLensError,
+	BugscopeError,
 	CDPConnectionError,
 	ChromeNotFoundError,
 	DAPClientDisposedError,
@@ -22,7 +22,7 @@ describe("getErrorMessage", () => {
 		expect(getErrorMessage(new Error("boom"))).toBe("boom");
 	});
 
-	it("returns .message for AgentLensError subclasses", () => {
+	it("returns .message for BugscopeError subclasses", () => {
 		expect(getErrorMessage(new DAPTimeoutError("initialize", 5000))).toBe("DAP request 'initialize' timed out after 5000ms");
 	});
 
@@ -34,16 +34,16 @@ describe("getErrorMessage", () => {
 	});
 });
 
-describe("AgentLensError", () => {
+describe("BugscopeError", () => {
 	it("sets message and code", () => {
-		const err = new AgentLensError("test message", "TEST_CODE");
+		const err = new BugscopeError("test message", "TEST_CODE");
 		expect(err.message).toBe("test message");
 		expect(err.code).toBe("TEST_CODE");
-		expect(err.name).toBe("AgentLensError");
+		expect(err.name).toBe("BugscopeError");
 	});
 
 	it("is instanceof Error", () => {
-		const err = new AgentLensError("test", "CODE");
+		const err = new BugscopeError("test", "CODE");
 		expect(err).toBeInstanceOf(Error);
 	});
 });
@@ -199,7 +199,7 @@ describe("BrowserRecorderStateError", () => {
 	});
 });
 
-describe("error hierarchy — all errors extend AgentLensError", () => {
+describe("error hierarchy — all errors extend BugscopeError", () => {
 	const errors = [
 		new DAPTimeoutError("cmd", 1000),
 		new DAPClientDisposedError(),
@@ -217,8 +217,8 @@ describe("error hierarchy — all errors extend AgentLensError", () => {
 	];
 
 	for (const err of errors) {
-		it(`${err.constructor.name} extends AgentLensError`, () => {
-			expect(err).toBeInstanceOf(AgentLensError);
+		it(`${err.constructor.name} extends BugscopeError`, () => {
+			expect(err).toBeInstanceOf(BugscopeError);
 			expect(err).toBeInstanceOf(Error);
 			expect(typeof err.code).toBe("string");
 			expect(err.code.length).toBeGreaterThan(0);

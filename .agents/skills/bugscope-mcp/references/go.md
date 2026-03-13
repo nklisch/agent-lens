@@ -3,7 +3,7 @@
 ## Prerequisites
 ```sh
 go install github.com/go-delve/delve/cmd/dlv@latest
-agent-lens doctor  # verify
+bugscope doctor  # verify
 ```
 
 ## Launch

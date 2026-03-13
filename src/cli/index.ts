@@ -26,7 +26,7 @@ import {
 
 const main = defineCommand({
 	meta: {
-		name: "agent-lens",
+		name: "bugscope",
 		version: "0.1.0",
 		description: "Runtime debugging viewport for AI coding agents",
 	},

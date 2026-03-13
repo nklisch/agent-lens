@@ -1,6 +1,6 @@
 # Pattern: Typed Error Hierarchy
 
-All errors extend `AgentLensError` with a typed `code` string and domain-specific context fields. A top-level `getErrorMessage(err: unknown)` utility safely extracts messages from any thrown value.
+All errors extend `BugscopeError` with a typed `code` string and domain-specific context fields. A top-level `getErrorMessage(err: unknown)` utility safely extracts messages from any thrown value.
 
 ## Rationale
 Provides structured error handling across the codebase: callers can `instanceof`-check for specific errors and access typed context (sessionId, adapterId, limits). The `code` field enables error mapping in RPC responses without string parsing.
@@ -14,13 +14,13 @@ export function getErrorMessage(err: unknown): string {
 	return err instanceof Error ? err.message : String(err);
 }
 
-export class AgentLensError extends Error {
+export class BugscopeError extends Error {
 	constructor(
 		message: string,
 		public readonly code: string,
 	) {
 		super(message);
-		this.name = "AgentLensError";
+		this.name = "BugscopeError";
 	}
 }
 ```
@@ -28,7 +28,7 @@ export class AgentLensError extends Error {
 ### Example 2: Domain Error with Context Fields
 **File**: `src/core/errors.ts:85-109`
 ```typescript
-export class SessionLimitError extends AgentLensError {
+export class SessionLimitError extends BugscopeError {
 	constructor(
 		public readonly limitName: string,
 		public readonly currentValue: number,
@@ -43,7 +43,7 @@ export class SessionLimitError extends AgentLensError {
 	}
 }
 
-export class AdapterPrerequisiteError extends AgentLensError {
+export class AdapterPrerequisiteError extends BugscopeError {
 	constructor(
 		public readonly adapterId: string,
 		public readonly missing: string[],
@@ -77,4 +77,4 @@ export function errorResponse(err: unknown): { content: Array<{ type: "text"; te
 ## Common Violations
 - Throwing `new Error("session not found")` instead of `new SessionNotFoundError(sessionId)` — loses structured context
 - Forgetting to set `this.name` in the subclass constructor — breaks stack traces and logging
-- Using string matching on `err.message` instead of `instanceof AgentLensError` — brittle
+- Using string matching on `err.message` instead of `instanceof BugscopeError` — brittle

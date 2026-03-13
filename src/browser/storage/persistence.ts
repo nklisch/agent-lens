@@ -12,8 +12,8 @@ import { type RetentionConfig, RetentionConfigSchema, RetentionManager } from ".
 import type { ScreenshotCapture } from "./screenshot.js";
 
 export const PersistenceConfigSchema = z.object({
-	/** Root data directory. Default: ~/.agent-lens/browser */
-	dataDir: z.string().default(resolve(homedir(), ".agent-lens", "browser")),
+	/** Root data directory. Default: ~/.bugscope/browser */
+	dataDir: z.string().default(resolve(homedir(), ".bugscope", "browser")),
 	/** Ms of context around each marker to persist. Should match buffer.markerPaddingMs. */
 	markerPaddingMs: z.number().default(120_000),
 });

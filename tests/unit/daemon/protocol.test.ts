@@ -187,14 +187,14 @@ describe("getDaemonSocketPath", () => {
 	it("uses XDG_RUNTIME_DIR when set", () => {
 		process.env.XDG_RUNTIME_DIR = "/run/user/1000";
 		const path = getDaemonSocketPath();
-		expect(path).toBe("/run/user/1000/agent-lens.sock");
+		expect(path).toBe("/run/user/1000/bugscope.sock");
 	});
 
-	it("falls back to ~/.agent-lens/agent-lens.sock when XDG not set", () => {
+	it("falls back to ~/.bugscope/bugscope.sock when XDG not set", () => {
 		delete process.env.XDG_RUNTIME_DIR;
 		const path = getDaemonSocketPath();
-		expect(path).toContain(".agent-lens");
-		expect(path).toContain("agent-lens.sock");
+		expect(path).toContain(".bugscope");
+		expect(path).toContain("bugscope.sock");
 	});
 });
 

@@ -1,59 +1,59 @@
 # CLI Command Reference
 
-All commands follow the pattern: `agent-lens <command> [options]`
+All commands follow the pattern: `bugscope <command> [options]`
 
 ## Session management
 
 ```
-agent-lens launch "<cmd>" [--break <bp>] [--stop-on-entry] [--language <lang>]
-agent-lens stop [--session <id>]
-agent-lens status [--session <id>]
+bugscope launch "<cmd>" [--break <bp>] [--stop-on-entry] [--language <lang>]
+bugscope stop [--session <id>]
+bugscope status [--session <id>]
 ```
 
 ## Execution control
 
 ```
-agent-lens continue [--timeout <ms>]
-agent-lens step over|into|out [--count <n>]
-agent-lens run-to <file>:<line> [--timeout <ms>]
+bugscope continue [--timeout <ms>]
+bugscope step over|into|out [--count <n>]
+bugscope run-to <file>:<line> [--timeout <ms>]
 ```
 
 ## Breakpoints
 
 ```
-agent-lens break <file>:<line>[,<line>,...] [when <cond>] [hit <cond>] [log '<msg>']
-agent-lens break --exceptions <filter>
-agent-lens break --clear <file>
-agent-lens breakpoints
+bugscope break <file>:<line>[,<line>,...] [when <cond>] [hit <cond>] [log '<msg>']
+bugscope break --exceptions <filter>
+bugscope break --clear <file>
+bugscope breakpoints
 ```
 
 ### Conditional breakpoint examples
 
 ```
-agent-lens break "cart.py:42 when discount < 0"
-agent-lens break "loop.py:10 hit >=100"
-agent-lens break "app.py:30 log 'total={total}, items={len(items)}'"
+bugscope break "cart.py:42 when discount < 0"
+bugscope break "loop.py:10 hit >=100"
+bugscope break "app.py:30 log 'total={total}, items={len(items)}'"
 ```
 
 ## Inspection
 
 ```
-agent-lens eval "<expr>" [--frame <n>] [--depth <n>]
-agent-lens vars [--scope local|global|closure|all] [--filter "<regex>"]
-agent-lens stack [--frames <n>] [--source]
-agent-lens source <file>[:<start>-<end>]
-agent-lens watch "<expr>" ["<expr>" ...]
+bugscope eval "<expr>" [--frame <n>] [--depth <n>]
+bugscope vars [--scope local|global|closure|all] [--filter "<regex>"]
+bugscope stack [--frames <n>] [--source]
+bugscope source <file>[:<start>-<end>]
+bugscope watch "<expr>" ["<expr>" ...]
 ```
 
 ## Session history and output
 
 ```
-agent-lens log [--detailed]
-agent-lens output [--stderr|--stdout] [--since-action <n>]
+bugscope log [--detailed]
+bugscope output [--stderr|--stdout] [--since-action <n>]
 ```
 
 ## Diagnostics
 
 ```
-agent-lens doctor
+bugscope doctor
 ```

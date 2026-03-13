@@ -1,6 +1,6 @@
-# Agent Lens Skill
+# Bugscope Skill
 
-The agent-lens skill is defined in the [`skill/`](skill/) directory using the [Agent Skills specification](https://agentskills.io/specification).
+The bugscope skill is defined in the [`skill/`](skill/) directory using the [Agent Skills specification](https://agentskills.io/specification).
 
 ## Install
 

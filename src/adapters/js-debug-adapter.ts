@@ -92,7 +92,7 @@ export async function downloadJsDebugAdapter(): Promise<void> {
 /**
  * Get the path to the js-debug DAP adapter entry point.
  * Downloads the adapter if not already cached or version is stale.
- * Cache location: ~/.agent-lens/adapters/js-debug/
+ * Cache location: ~/.bugscope/adapters/js-debug/
  */
 export async function getJsDebugAdapterPath(): Promise<string> {
 	if (isJsDebugAdapterCached() && (await isCachedVersionCurrent())) {

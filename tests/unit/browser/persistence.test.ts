@@ -42,7 +42,7 @@ function makeEvent(id: string, timestamp: number): RecordedEvent {
 }
 
 beforeEach(() => {
-	dataDir = resolve(tmpdir(), "agent-lens-persist-test-" + crypto.randomUUID());
+	dataDir = resolve(tmpdir(), "bugscope-persist-test-" + crypto.randomUUID());
 	mkdirSync(dataDir, { recursive: true });
 	pipeline = new PersistencePipeline({ dataDir, markerPaddingMs: 5000 });
 	buffer = new RollingBuffer(BufferConfigSchema.parse({}));

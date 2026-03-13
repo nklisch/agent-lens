@@ -194,7 +194,7 @@ export class DAPClient {
 **Implementation Notes**:
 - The `send()` method must create a timeout timer per request. On timeout, reject with `DAPTimeoutError` containing the command name and timeout value, then delete from `pendingRequests`.
 - `connect()` uses `net.createConnection({ host, port })` and wraps the socket as both reader and writer. Store the socket reference for `disconnect()`.
-- `initialize()` sends the `initialize` request with `clientID: "agent-lens"`, `adapterID: "agent-lens"`, `supportsVariableType: true`, `linesStartAt1: true`, `columnsStartAt1: true`. Then registers a one-shot handler for the `initialized` event using a Promise. The `initialized` event handler resolves the promise. Returns the capabilities from the `InitializeResponse`.
+- `initialize()` sends the `initialize` request with `clientID: "bugscope"`, `adapterID: "bugscope"`, `supportsVariableType: true`, `linesStartAt1: true`, `columnsStartAt1: true`. Then registers a one-shot handler for the `initialized` event using a Promise. The `initialized` event handler resolves the promise. Returns the capabilities from the `InitializeResponse`.
 - `waitForStop()` registers handlers for `stopped`, `terminated`, and `exited` events. Whichever fires first resolves the promise. All handlers are cleaned up on resolution. Timeout rejects with `DAPTimeoutError`.
 - Each typed helper is a thin wrapper: e.g., `configurationDone()` calls `this.send('configurationDone')`.
 - On `disconnect()`, close the socket if it exists, set `_connected = false`.
@@ -1119,7 +1119,7 @@ const sessionManager = new SessionManager(limits);
 
 // Create and configure MCP server
 const server = new McpServer({
-	name: "agent-lens",
+	name: "bugscope",
 	version: "0.1.0",
 });
 
@@ -1162,22 +1162,22 @@ Define structured error types used across the codebase.
 
 ```typescript
 /**
- * Base error for all Agent Lens errors.
+ * Base error for all Bugscope errors.
  */
-export class AgentLensError extends Error {
+export class BugscopeError extends Error {
 	constructor(
 		message: string,
 		public readonly code: string,
 	) {
 		super(message);
-		this.name = "AgentLensError";
+		this.name = "BugscopeError";
 	}
 }
 
 /**
  * DAP request timed out.
  */
-export class DAPTimeoutError extends AgentLensError {
+export class DAPTimeoutError extends BugscopeError {
 	constructor(
 		public readonly command: string,
 		public readonly timeoutMs: number,
@@ -1193,7 +1193,7 @@ export class DAPTimeoutError extends AgentLensError {
 /**
  * DAP client has been disposed.
  */
-export class DAPClientDisposedError extends AgentLensError {
+export class DAPClientDisposedError extends BugscopeError {
 	constructor() {
 		super("DAP client has been disposed", "DAP_DISPOSED");
 		this.name = "DAPClientDisposedError";
@@ -1203,7 +1203,7 @@ export class DAPClientDisposedError extends AgentLensError {
 /**
  * DAP connection failed.
  */
-export class DAPConnectionError extends AgentLensError {
+export class DAPConnectionError extends BugscopeError {
 	constructor(
 		public readonly host: string,
 		public readonly port: number,
@@ -1220,7 +1220,7 @@ export class DAPConnectionError extends AgentLensError {
 /**
  * Session not found.
  */
-export class SessionNotFoundError extends AgentLensError {
+export class SessionNotFoundError extends BugscopeError {
 	constructor(public readonly sessionId: string) {
 		super(`No debug session with id: ${sessionId}`, "SESSION_NOT_FOUND");
 		this.name = "SessionNotFoundError";
@@ -1230,7 +1230,7 @@ export class SessionNotFoundError extends AgentLensError {
 /**
  * Session is in an invalid state for the requested operation.
  */
-export class SessionStateError extends AgentLensError {
+export class SessionStateError extends BugscopeError {
 	constructor(
 		public readonly sessionId: string,
 		public readonly currentState: string,
@@ -1248,7 +1248,7 @@ export class SessionStateError extends AgentLensError {
 /**
  * Session resource limit exceeded.
  */
-export class SessionLimitError extends AgentLensError {
+export class SessionLimitError extends BugscopeError {
 	constructor(
 		public readonly limitName: string,
 		public readonly currentValue: number,
@@ -1267,7 +1267,7 @@ export class SessionLimitError extends AgentLensError {
 /**
  * Adapter prerequisites not met.
  */
-export class AdapterPrerequisiteError extends AgentLensError {
+export class AdapterPrerequisiteError extends BugscopeError {
 	constructor(
 		public readonly adapterId: string,
 		public readonly missing: string[],
@@ -1285,7 +1285,7 @@ export class AdapterPrerequisiteError extends AgentLensError {
 /**
  * No adapter found for the given language or file extension.
  */
-export class AdapterNotFoundError extends AgentLensError {
+export class AdapterNotFoundError extends BugscopeError {
 	constructor(public readonly languageOrExt: string) {
 		super(
 			`No debug adapter found for '${languageOrExt}'. ` +
@@ -1299,7 +1299,7 @@ export class AdapterNotFoundError extends AgentLensError {
 /**
  * Debugee process launch failed.
  */
-export class LaunchError extends AgentLensError {
+export class LaunchError extends BugscopeError {
 	constructor(
 		message: string,
 		public readonly stderr?: string,
@@ -1311,12 +1311,12 @@ export class LaunchError extends AgentLensError {
 ```
 
 **Implementation Notes**:
-- All errors extend `AgentLensError` which has a `code` field. This allows MCP tool handlers to pattern-match on error codes for structured responses.
+- All errors extend `BugscopeError` which has a `code` field. This allows MCP tool handlers to pattern-match on error codes for structured responses.
 - Error messages are written to be useful to agents — they explain what happened and suggest remediation.
 - `SessionLimitError` includes a `suggestion` field (e.g., "Consider using conditional breakpoints to reduce step count").
 
 **Acceptance Criteria**:
-- [ ] All error types extend `AgentLensError`
+- [ ] All error types extend `BugscopeError`
 - [ ] Each error type has a unique `code` string
 - [ ] Error messages are descriptive and include remediation suggestions
 - [ ] Errors serialize properly (no circular references, `message` is readable)
@@ -1623,7 +1623,7 @@ Full MCP path for the canonical discount bug scenario.
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
 /**
- * Create an MCP client connected to the agent-lens server via stdio.
+ * Create an MCP client connected to the bugscope server via stdio.
  * Spawns the server as a child process for e2e testing.
  */
 export async function createTestClient(): Promise<{

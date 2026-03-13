@@ -768,7 +768,7 @@ if (browserQueryEngine) {
 }
 ```
 
-The `QueryEngine` is instantiated when the MCP server starts, pointing at `~/.agent-lens/browser/index.db`. If the database doesn't exist (user hasn't used Browser Lens yet), the tools are still registered but return "No recordings found."
+The `QueryEngine` is instantiated when the MCP server starts, pointing at `~/.bugscope/browser/index.db`. If the database doesn't exist (user hasn't used Browser Lens yet), the tools are still registered but return "No recordings found."
 
 **Tests:** E2E tests via MCP client. Pre-populate a test database with fixture data, call each tool, verify response format.
 
@@ -781,13 +781,13 @@ The `QueryEngine` is instantiated when the MCP server starts, pointing at `~/.ag
 Add investigation subcommands to the existing browser CLI.
 
 ```typescript
-// agent-lens browser sessions [--has-markers] [--has-errors] [--after <date>]
-// agent-lens browser overview <session_id> [--around-marker <id>] [--budget <tokens>]
-// agent-lens browser search <session_id> --query "validation error"
-// agent-lens browser search <session_id> --status-codes 422,500
-// agent-lens browser inspect <session_id> --marker <id> --include network_body,console_context
-// agent-lens browser inspect <session_id> --event <id>
-// agent-lens browser inspect <session_id> --timestamp "14:35:22"
+// bugscope browser sessions [--has-markers] [--has-errors] [--after <date>]
+// bugscope browser overview <session_id> [--around-marker <id>] [--budget <tokens>]
+// bugscope browser search <session_id> --query "validation error"
+// bugscope browser search <session_id> --status-codes 422,500
+// bugscope browser inspect <session_id> --marker <id> --include network_body,console_context
+// bugscope browser inspect <session_id> --event <id>
+// bugscope browser inspect <session_id> --timestamp "14:35:22"
 ```
 
 Each CLI command:
@@ -959,10 +959,10 @@ bun run test tests/e2e/mcp/browser-investigation.test.ts
 
 # Manual verification
 # (Assumes Phase 9+10 are complete with a recorded session)
-agent-lens browser sessions --has-markers
-agent-lens browser overview <session_id> --around-marker M1
-agent-lens browser search <session_id> --query "validation error"
-agent-lens browser inspect <session_id> --marker M1 --include network_body,console_context
+bugscope browser sessions --has-markers
+bugscope browser overview <session_id> --around-marker M1
+bugscope browser search <session_id> --query "validation error"
+bugscope browser inspect <session_id> --marker M1 --include network_body,console_context
 ```
 
 **Done when:** All 4 MCP tools are registered, produce token-budgeted output, and the CLI mirrors the tool surface. An agent can list sessions, get an overview, search for errors, and inspect specific moments with full network body evidence.

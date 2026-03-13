@@ -63,7 +63,7 @@ const frameworkEvents: RecordedEvent[] = [
 ];
 
 beforeEach(() => {
-	tmpDir = resolve(tmpdir(), "agent-lens-fw-test-" + crypto.randomUUID());
+	tmpDir = resolve(tmpdir(), "bugscope-fw-test-" + crypto.randomUUID());
 	recordingDir = resolve(tmpDir, "recordings", SID);
 	mkdirSync(resolve(recordingDir, "network"), { recursive: true });
 

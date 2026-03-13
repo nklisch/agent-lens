@@ -10,7 +10,7 @@ let db: BrowserDatabase;
 let tmpDir: string;
 
 beforeEach(() => {
-	tmpDir = resolve(tmpdir(), "agent-lens-db-test-" + crypto.randomUUID());
+	tmpDir = resolve(tmpdir(), "bugscope-db-test-" + crypto.randomUUID());
 	mkdirSync(tmpDir, { recursive: true });
 	db = new BrowserDatabase(resolve(tmpDir, "test.db"));
 });

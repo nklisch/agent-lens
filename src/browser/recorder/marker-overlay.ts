@@ -1,25 +1,25 @@
 import type { CDPClient } from "./cdp-client.js";
 
-const MARK_BINDING = "agentLensMark";
-const SCREENSHOT_BINDING = "agentLensScreenshot";
+const MARK_BINDING = "bugscopeMark";
+const SCREENSHOT_BINDING = "bugscopeScreenshot";
 
 /**
  * Page script injected via CDP into every recorded tab.
  * Renders a floating control panel (bottom-right) with:
- *   - ◎ Mark button  — calls agentLensMark CDP binding
- *   - 📷 Snap button — calls agentLensScreenshot CDP binding
+ *   - ◎ Mark button  — calls bugscopeMark CDP binding
+ *   - 📷 Snap button — calls bugscopeScreenshot CDP binding
  *   - Auto-capture interval display
  * Keyboard shortcuts: Ctrl+Shift+M (mark), Ctrl+Shift+S (snap).
  */
 function getControlPanelScript(intervalMs: number): string {
 	const intervalLabel = intervalMs > 0 ? `${intervalMs / 1000}s` : "off";
 	return `(function() {
-  if (window.__agentLensPanel) return;
-  window.__agentLensPanel = true;
+  if (window.__bugscopePanel) return;
+  window.__bugscopePanel = true;
 
   // --- Panel ---
   var panel = document.createElement('div');
-  panel.id = '__agent_lens_panel';
+  panel.id = '__bugscope_panel';
   var ps = panel.style;
   ps.position = 'fixed';
   ps.bottom = '16px';
@@ -44,7 +44,7 @@ function getControlPanelScript(intervalMs: number): string {
   dot.style.cssText = 'width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;box-shadow:0 0 5px #22c55e88;flex-shrink:0;';
   var title = document.createElement('span');
   title.style.cssText = 'color:#e2e8f0;font-weight:700;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;';
-  title.textContent = 'agent-lens';
+  title.textContent = 'bugscope';
   header.appendChild(dot);
   header.appendChild(title);
   panel.appendChild(header);
@@ -92,7 +92,7 @@ function getControlPanelScript(intervalMs: number): string {
   // Mark button
   var markBtn = makeBtn('\\u25CE', 'Mark', 'Place marker (Ctrl+Shift+M)', '#22c55e');
   function triggerMark() {
-    window.agentLensMark('user');
+    window.bugscopeMark('user');
     flash(markBtn, 'Marked!', '#14532d', '#22c55e');
   }
   markBtn.onclick = triggerMark;
@@ -101,7 +101,7 @@ function getControlPanelScript(intervalMs: number): string {
   // Snap button
   var snapBtn = makeBtn('\\uD83D\\uDCF7', 'Snap', 'Capture screenshot (Ctrl+Shift+S)', '#3b82f6');
   function triggerSnap() {
-    window.agentLensScreenshot('manual');
+    window.bugscopeScreenshot('manual');
     flash(snapBtn, 'Saved!', '#1e3a5f', '#3b82f6');
   }
   snapBtn.onclick = triggerSnap;
@@ -122,7 +122,7 @@ function getControlPanelScript(intervalMs: number): string {
   });
 
   function mount() {
-    if (document.body && !document.getElementById('__agent_lens_panel')) {
+    if (document.body && !document.getElementById('__bugscope_panel')) {
       document.body.appendChild(panel);
     }
   }
@@ -132,7 +132,7 @@ function getControlPanelScript(intervalMs: number): string {
 }
 
 /**
- * Registers agentLensMark + agentLensScreenshot CDP bindings, injects the control panel.
+ * Registers bugscopeMark + bugscopeScreenshot CDP bindings, injects the control panel.
  * Returns a cleanup function.
  */
 export async function setupControlPanel(

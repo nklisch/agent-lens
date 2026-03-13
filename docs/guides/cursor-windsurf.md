@@ -1,6 +1,6 @@
-# Using Agent Lens with Cursor and Windsurf
+# Using Bugscope with Cursor and Windsurf
 
-Both Cursor and Windsurf support MCP servers. Agent Lens integrates via MCP to give the AI runtime debugging.
+Both Cursor and Windsurf support MCP servers. Bugscope integrates via MCP to give the AI runtime debugging.
 
 ## Cursor Setup
 
@@ -9,9 +9,9 @@ Add to your Cursor MCP configuration at `~/.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "agent-lens": {
+    "bugscope": {
       "command": "npx",
-      "args": ["agent-lens", "mcp"]
+      "args": ["bugscope", "mcp"]
     }
   }
 }
@@ -22,8 +22,8 @@ Or with a compiled binary:
 ```json
 {
   "mcpServers": {
-    "agent-lens": {
-      "command": "/usr/local/bin/agent-lens",
+    "bugscope": {
+      "command": "/usr/local/bin/bugscope",
       "args": ["mcp"]
     }
   }
@@ -39,9 +39,9 @@ Add to your Windsurf MCP configuration at `~/.windsurf/mcp_config.json` (or via 
 ```json
 {
   "mcpServers": {
-    "agent-lens": {
+    "bugscope": {
       "command": "npx",
-      "args": ["agent-lens", "mcp"],
+      "args": ["bugscope", "mcp"],
       "env": {}
     }
   }
@@ -67,28 +67,28 @@ For team setups, add a `.mcp.json` file to your project root:
 ```json
 {
   "mcpServers": {
-    "agent-lens": {
+    "bugscope": {
       "command": "npx",
-      "args": ["agent-lens", "mcp"]
+      "args": ["bugscope", "mcp"]
     }
   }
 }
 ```
 
-This lets all team members use agent-lens without individual configuration.
+This lets all team members use bugscope without individual configuration.
 
 ## Known Limitations
 
-- **MCP transport**: Agent Lens uses stdio transport, which is supported by both Cursor and Windsurf.
+- **MCP transport**: Bugscope uses stdio transport, which is supported by both Cursor and Windsurf.
 - **Session persistence**: Debug sessions persist as long as the MCP server process runs. If Cursor/Windsurf restarts the MCP server, active sessions are lost.
-- **Port allocation**: Agent Lens allocates local ports for debugger connections. Ensure ports 4000–5000 are not blocked by firewall rules.
+- **Port allocation**: Bugscope allocates local ports for debugger connections. Ensure ports 4000–5000 are not blocked by firewall rules.
 
 ## Checking Adapter Status
 
 In a terminal:
 
 ```bash
-agent-lens doctor
+bugscope doctor
 ```
 
 This confirms which language debuggers are installed (Python, Node.js, Go, Rust, Java, C/C++).

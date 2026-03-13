@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Install the agent-lens CLI binary to ~/.local/bin
+# Install the bugscope CLI binary to ~/.local/bin
 # Run after every release: bash scripts/install.sh
 
 set -euo pipefail
 
-DEST="${AGENT_LENS_INSTALL_DIR:-$HOME/.local/bin}"
-BINARY="dist/agent-lens"
+DEST="${BUGSCOPE_INSTALL_DIR:-$HOME/.local/bin}"
+BINARY="dist/bugscope"
 
 if [ ! -f "$BINARY" ]; then
   echo "Building..."
@@ -13,8 +13,8 @@ if [ ! -f "$BINARY" ]; then
 fi
 
 mkdir -p "$DEST"
-cp "$BINARY" "$DEST/agent-lens"
-chmod +x "$DEST/agent-lens"
+cp "$BINARY" "$DEST/bugscope"
+chmod +x "$DEST/bugscope"
 
-echo "Installed: $DEST/agent-lens"
-"$DEST/agent-lens" --version 2>/dev/null || true
+echo "Installed: $DEST/bugscope"
+"$DEST/bugscope" --version 2>/dev/null || true

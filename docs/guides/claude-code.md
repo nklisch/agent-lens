@@ -1,6 +1,6 @@
-# Using Agent Lens with Claude Code
+# Using Bugscope with Claude Code
 
-Agent Lens gives Claude Code runtime debugging — it can set breakpoints, inspect variables, and trace execution to find bugs.
+Bugscope gives Claude Code runtime debugging — it can set breakpoints, inspect variables, and trace execution to find bugs.
 
 ## Setup: MCP Server (Recommended)
 
@@ -9,9 +9,9 @@ Add to your Claude Code MCP config (`~/.claude/mcp.json` or project `.mcp.json`)
 ```json
 {
   "mcpServers": {
-    "agent-lens": {
+    "bugscope": {
       "command": "npx",
-      "args": ["agent-lens", "mcp"]
+      "args": ["bugscope", "mcp"]
     }
   }
 }
@@ -22,8 +22,8 @@ Or with a compiled binary:
 ```json
 {
   "mcpServers": {
-    "agent-lens": {
-      "command": "/path/to/agent-lens",
+    "bugscope": {
+      "command": "/path/to/bugscope",
       "args": ["mcp"]
     }
   }
@@ -39,7 +39,7 @@ Use the CLI path when you want Claude to use bash commands instead of MCP tools.
 Print the skill file and append it to your project's CLAUDE.md:
 
 ```bash
-npx agent-lens skill >> CLAUDE.md
+npx bugscope skill >> CLAUDE.md
 ```
 
 Or reference it manually:
@@ -47,8 +47,8 @@ Or reference it manually:
 ```markdown
 ## Debugging
 
-You have access to `agent-lens` for runtime debugging.
-Run `agent-lens --help` for available commands.
+You have access to `bugscope` for runtime debugging.
+Run `bugscope --help` for available commands.
 ```
 
 ## Verification
@@ -75,16 +75,16 @@ Claude Code will:
 ## Tips
 
 - **MCP path is zero-config** — Claude discovers tools automatically from the server
-- **CLI path** gives Claude bash access to the full command set including `agent-lens launch`, `agent-lens break`, etc.
+- **CLI path** gives Claude bash access to the full command set including `bugscope launch`, `bugscope break`, etc.
 - **Let Claude choose breakpoints** — it knows the code better after reading it
-- **Conditional breakpoints** are powerful for loops: `agent-lens break app.py:25 when discount < 0`
+- **Conditional breakpoints** are powerful for loops: `bugscope break app.py:25 when discount < 0`
 - **The viewport is compact** (~400 tokens per stop) so Claude can take many debug steps without exhausting context
 - **Framework auto-detection** works for pytest, jest, go test, Django, Flask, etc.
 
 ## Checking Installation
 
 ```bash
-agent-lens doctor
+bugscope doctor
 ```
 
 This shows which language adapters are installed and their versions.

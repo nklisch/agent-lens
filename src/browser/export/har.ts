@@ -104,7 +104,7 @@ export class HARExporter {
 		return {
 			log: {
 				version: "1.2",
-				creator: { name: "Agent Lens Browser", version: "1.0" },
+				creator: { name: "Bugscope Browser", version: "1.0" },
 				pages: [
 					{
 						startedDateTime: new Date(session.started_at).toISOString(),
