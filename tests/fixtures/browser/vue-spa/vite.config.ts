@@ -3,9 +3,14 @@ import vue from "@vitejs/plugin-vue";
 
 export default defineConfig({
 	plugins: [vue()],
+	define: {
+		// Enable Vue devtools hooks in production build for framework observer testing
+		__VUE_PROD_DEVTOOLS__: "true",
+	},
 	build: {
 		outDir: "dist",
-		sourcemap: false,
+		minify: false,
+		sourcemap: true,
 	},
 	server: {
 		port: 5174,

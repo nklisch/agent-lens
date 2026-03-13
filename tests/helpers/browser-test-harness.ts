@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from "node:child_process";
+import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -32,8 +32,10 @@ export interface BrowserTestContext {
 	/** MCP client connected to an agent-lens server using the same data dir. */
 	mcpClient: Client;
 
-	/** Navigate Chrome to a URL. Waits for load. */
+	/** Navigate Chrome to a URL. Waits for load. Full page reload — destroys SPA state. */
 	navigate(path: string): Promise<void>;
+	/** SPA navigation via history.pushState + popstate. Preserves SPA state (stores, auth). */
+	spaNavigate(path: string): Promise<void>;
 	/** Evaluate JS in the page context and return the string result. */
 	evaluate(expression: string): Promise<string>;
 	/** Click an element by selector (via JS click()). */
@@ -74,9 +76,9 @@ export async function setupBrowserTest(options?: BrowserTestOptions): Promise<Br
 	const pkgJson = join(fixtureDir, "package.json");
 	const nodeModules = join(fixtureDir, "node_modules");
 	if (existsSync(pkgJson) && !existsSync(nodeModules)) {
-		const installResult = Bun.spawnSync(["bun", "install"], { cwd: fixtureDir, stdout: "pipe", stderr: "pipe" });
-		if (installResult.exitCode !== 0) {
-			throw new Error(`bun install failed in ${fixtureDir}: ${installResult.stderr}`);
+		const installResult = spawnSync("bun", ["install"], { cwd: fixtureDir, stdio: "pipe" });
+		if (installResult.status !== 0) {
+			throw new Error(`bun install failed in ${fixtureDir}: ${installResult.stderr?.toString()}`);
 		}
 	}
 
@@ -84,13 +86,12 @@ export async function setupBrowserTest(options?: BrowserTestOptions): Promise<Br
 	const distDir = join(fixtureDir, "dist");
 	const viteConfig = join(fixtureDir, "vite.config.ts");
 	if (existsSync(viteConfig) && !existsSync(distDir)) {
-		const buildResult = Bun.spawnSync(["bunx", "vite", "build"], {
+		const buildResult = spawnSync("bunx", ["vite", "build"], {
 			cwd: fixtureDir,
-			stdout: "pipe",
-			stderr: "pipe",
+			stdio: "pipe",
 		});
-		if (buildResult.exitCode !== 0) {
-			throw new Error(`Vite build failed in ${fixtureDir}: ${buildResult.stderr}`);
+		if (buildResult.status !== 0) {
+			throw new Error(`Vite build failed in ${fixtureDir}: ${buildResult.stderr?.toString()}`);
 		}
 	}
 
@@ -137,6 +138,20 @@ export async function setupBrowserTest(options?: BrowserTestOptions): Promise<Br
 			await wait(800);
 		},
 
+		async spaNavigate(path: string) {
+			await ctx.evaluate(`
+				(() => {
+					if (window.__SPA_NAVIGATE__) {
+						window.__SPA_NAVIGATE__(${JSON.stringify(path)});
+					} else {
+						window.history.pushState({}, '', ${JSON.stringify(path)});
+						window.dispatchEvent(new PopStateEvent('popstate'));
+					}
+				})()
+			`);
+			await wait(500);
+		},
+
 		async evaluate(expression: string): Promise<string> {
 			const result = await cdpSendToPrimaryTab(cdpPort, "Runtime.evaluate", {
 				expression,
@@ -154,9 +169,18 @@ export async function setupBrowserTest(options?: BrowserTestOptions): Promise<Br
 			await ctx.evaluate(`
 				(() => {
 					const el = document.querySelector(${JSON.stringify(selector)});
-					el.value = '';
+					if (!el) throw new Error('Element not found: ' + ${JSON.stringify(selector)});
 					el.focus();
-					el.value = ${JSON.stringify(value)};
+					// Use native setter to trigger React/Vue internal value tracking
+					const nativeSetter = Object.getOwnPropertyDescriptor(
+						el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype,
+						'value'
+					)?.set;
+					if (nativeSetter) {
+						nativeSetter.call(el, ${JSON.stringify(value)});
+					} else {
+						el.value = ${JSON.stringify(value)};
+					}
 					el.dispatchEvent(new Event('input', { bubbles: true }));
 					el.dispatchEvent(new Event('change', { bubbles: true }));
 				})()

@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { Navbar } from "./components/Navbar.js";
 import { InfiniteUpdater } from "./bugs/InfiniteUpdater.js";
 import { StalePrice } from "./bugs/StalePrice.js";
@@ -11,6 +11,21 @@ import { Checkout } from "./pages/Checkout.js";
 import { Home } from "./pages/Home.js";
 import { Login } from "./pages/Login.js";
 import { ProductDetail } from "./pages/ProductDetail.js";
+
+declare global {
+	interface Window {
+		__SPA_NAVIGATE__?: (path: string) => void;
+	}
+}
+
+/** Expose React Router's navigate function globally for test automation. */
+function NavigateExposer() {
+	const navigate = useNavigate();
+	useEffect(() => {
+		window.__SPA_NAVIGATE__ = (path: string) => navigate(path);
+	}, [navigate]);
+	return null;
+}
 
 const BUG_COMPONENTS: Record<string, React.FC> = {
 	"infinite-updater": InfiniteUpdater,
@@ -29,6 +44,7 @@ function BugRoute() {
 function App() {
 	return (
 		<BrowserRouter>
+			<NavigateExposer />
 			<Navbar />
 			<main style={{ padding: "1rem" }}>
 				<Routes>
