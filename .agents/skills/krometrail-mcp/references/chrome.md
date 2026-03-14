@@ -62,6 +62,45 @@ chrome_mark()  # unlabeled — timestamped only
 
 Use `around_marker` in `session_overview` or `session_search` to center investigation on a marker.
 
+## Annotations (Lightweight Markers)
+
+When recording a browser session, you can instrument the application's source code
+with lightweight annotations that appear in the recording timeline without triggering
+expensive screenshots or persistence snapshots.
+
+### When to use annotations vs markers
+
+- **Annotations** (`window.__krometrail.mark()`): For frequent, programmatic events
+  in application code — render cycles, state transitions, feature flag checks, API
+  call starts/ends. Safe in loops. Automatically coalesced when fired rapidly.
+
+- **Markers** (`chrome_mark` tool): For significant moments you want to investigate
+  later — error reproduction points, "before" and "after" a user action. Triggers
+  screenshot capture and event persistence.
+
+### How to add annotations to application code
+
+Add calls to the application source code (they no-op when krometrail isn't recording):
+
+```javascript
+// Simple annotation
+window.__krometrail?.mark('checkout-started');
+
+// With severity and context data
+window.__krometrail?.mark('payment-failed', {
+  severity: 'high',
+  data: { errorCode: 'card_declined', amount: 42.99 }
+});
+
+// Promote to full marker (triggers screenshot + persistence)
+window.__krometrail?.mark('critical-error', { marker: true });
+```
+
+### Querying annotations
+
+Use `session_search` with `event_types: ["annotation"]` to find annotations,
+or use `contains_text` to search by label.
+
 ## Tab Recording
 ```
 chrome_start(all_tabs: true)                    # all tabs

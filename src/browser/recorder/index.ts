@@ -4,6 +4,8 @@ import { type PersistenceConfig, PersistencePipeline } from "../storage/persiste
 import { RetentionConfigSchema } from "../storage/retention.js";
 import { ScreenshotCapture, type ScreenshotConfig, ScreenshotConfigSchema } from "../storage/screenshot.js";
 import type { BrowserSessionInfo, Marker } from "../types.js";
+import { AnnotationCoalescer } from "./annotation-coalescer.js";
+import { getAnnotationInjectionScript } from "./annotation-injector.js";
 import type { DetectionRule } from "./auto-detect.js";
 import { AutoDetector, DEFAULT_DETECTION_RULES } from "./auto-detect.js";
 import type { CDPClient } from "./cdp-client.js";
@@ -60,6 +62,7 @@ export class BrowserRecorder {
 	private buffer: RollingBuffer;
 	private autoDetector: AutoDetector;
 	private frameworkTracker: FrameworkTracker;
+	private annotationCoalescer: AnnotationCoalescer;
 	private recording = false;
 	private sessionId: string;
 	private startedAt = 0;
@@ -84,6 +87,29 @@ export class BrowserRecorder {
 		this.autoDetector = new AutoDetector(config.detectionRules ?? DEFAULT_DETECTION_RULES);
 		this.frameworkTracker = new FrameworkTracker(config.frameworkState);
 		this.launcher = new ChromeLauncher();
+
+		this.annotationCoalescer = new AnnotationCoalescer((ann) => {
+			const summary = ann.count === 1 ? `Annotation: ${ann.label}` : `Annotation: ${ann.label} (×${ann.count})`;
+			const event: import("../types.js").RecordedEvent = {
+				id: crypto.randomUUID(),
+				timestamp: ann.lastTs,
+				type: "annotation",
+				tabId: "",
+				summary,
+				data: {
+					label: ann.label,
+					source: ann.source,
+					severity: ann.severity,
+					count: ann.count,
+					firstTs: ann.firstTs,
+					lastTs: ann.lastTs,
+					metadata: ann.metadata,
+				},
+			};
+			this.buffer.push(event);
+			this.persistence?.onNewEvent(event, this.buildSessionInfo());
+			this.cachedSessionInfo = null;
+		});
 
 		if (config.persistence) {
 			const bufferConfig = BufferConfigSchema.parse(config.buffer ?? {});
@@ -140,6 +166,7 @@ export class BrowserRecorder {
 			persistence: this.persistence ?? undefined,
 			screenshotCapture: this.screenshotCapture ?? undefined,
 			frameworkTracker: this.frameworkTracker.isEnabled() ? this.frameworkTracker : undefined,
+			annotationCoalescer: this.annotationCoalescer,
 			captureOnNavigation: this.config.screenshots?.onNavigation !== false,
 			getSessionInfo: () => this.buildSessionInfo(),
 			getPrimaryTabSessionId: () => this.getPrimaryTabSessionId(),
@@ -221,6 +248,9 @@ export class BrowserRecorder {
 			this.screenshotCapture.stopPeriodic();
 		}
 
+		this.annotationCoalescer.flushAll();
+		this.annotationCoalescer.dispose();
+
 		if (this.persistence) {
 			this.persistence.endSession(this.sessionId);
 		}
@@ -252,6 +282,13 @@ export class BrowserRecorder {
 		for (const { domain, params } of DOMAINS_TO_ENABLE) {
 			await this.cdpClient.sendToTarget(sessionId, `${domain}.enable`, params as Record<string, unknown>).catch(() => {});
 		}
+
+		// Inject annotation API script (window.__krometrail.mark)
+		await this.cdpClient
+			.sendToTarget(sessionId, "Page.addScriptToEvaluateOnNewDocument", {
+				source: getAnnotationInjectionScript(),
+			})
+			.catch(() => {});
 
 		// Inject framework detection scripts (before input tracker to ensure hooks install first)
 		for (const script of this.frameworkTracker.getInjectionScripts()) {

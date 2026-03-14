@@ -57,6 +57,7 @@ export const EVENT_TYPES = [
 	"framework_detect",
 	"framework_state",
 	"framework_error",
+	"annotation",
 ] as const;
 export const EventTypeSchema = z.enum(EVENT_TYPES);
 export type EventType = z.infer<typeof EventTypeSchema>;
@@ -75,6 +76,7 @@ export const SEARCHABLE_EVENT_TYPES = [
 	"framework_detect",
 	"framework_state",
 	"framework_error",
+	"annotation",
 ] as const;
 export const SearchableEventTypeSchema = z.enum(SEARCHABLE_EVENT_TYPES);
 

@@ -43,6 +43,8 @@ Tools: `chrome_start`, `chrome_status`, `chrome_mark`, `chrome_stop`
 
 > **Chrome setup:** See `references/chrome.md` for how to handle existing Chrome instances, CDP errors, and headless environments.
 
+> **Annotations:** When recording, application code can call `window.__krometrail?.mark('label')` to place lightweight annotations in the timeline without triggering screenshots. See `references/chrome.md` — "Annotations" section for details and when to use annotations vs markers.
+
 **Do NOT use for:** Stepping through JavaScript source. For JS debugging, use `debug_attach` (see `references/node.md`).
 
 ---

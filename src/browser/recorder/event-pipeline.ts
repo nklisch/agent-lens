@@ -1,6 +1,7 @@
 import type { PersistencePipeline } from "../storage/persistence.js";
 import type { ScreenshotCapture } from "../storage/screenshot.js";
 import type { BrowserSessionInfo, Marker, RecordedEvent } from "../types.js";
+import type { AnnotationCoalescer } from "./annotation-coalescer.js";
 import type { AutoDetector } from "./auto-detect.js";
 import type { CDPClient } from "./cdp-client.js";
 import type { EventNormalizer } from "./event-normalizer.js";
@@ -20,6 +21,8 @@ export interface EventPipelineConfig {
 	screenshotCapture?: ScreenshotCapture;
 	/** Framework state tracker. Processes __BL__ framework_* events. */
 	frameworkTracker?: FrameworkTracker;
+	/** Annotation coalescer for throttling page-side annotations. */
+	annotationCoalescer?: AnnotationCoalescer;
 	/** Whether to capture a screenshot on navigation events. */
 	captureOnNavigation: boolean;
 	/** Called to get current session info for persistence calls. */
@@ -66,14 +69,37 @@ export class EventPipeline {
 							persistence.onNewEvent(inputEvent, this.config.getSessionInfo());
 						}
 					}
-				} else if (this.config.frameworkTracker) {
-					const fwEvent = this.config.frameworkTracker.processFrameworkEvent(raw, tabId);
-					if (fwEvent) {
-						buffer.push(fwEvent);
-						this.config.invalidateSessionCache();
-						this.checkAutoDetect(fwEvent);
-						if (persistence) {
-							persistence.onNewEvent(fwEvent, this.config.getSessionInfo());
+				} else {
+					// Check for annotation events before falling through to frameworkTracker
+					let parsedRaw: { type?: string; label?: string; ts?: number; severity?: string; metadata?: Record<string, unknown>; promote?: boolean } | null = null;
+					try {
+						parsedRaw = JSON.parse(raw) as typeof parsedRaw;
+					} catch {
+						// not valid JSON — fall through
+					}
+					if (parsedRaw?.type === "annotation") {
+						if (parsedRaw.promote === true) {
+							void this.config.placeMarker(parsedRaw.label);
+						} else if (this.config.annotationCoalescer) {
+							this.config.annotationCoalescer.add(
+								parsedRaw.label ?? "",
+								"api",
+								parsedRaw.ts ?? Date.now(),
+								parsedRaw.severity as Parameters<typeof this.config.annotationCoalescer.add>[3],
+								parsedRaw.metadata,
+							);
+						}
+						return; // Don't fall through to frameworkTracker
+					}
+					if (this.config.frameworkTracker) {
+						const fwEvent = this.config.frameworkTracker.processFrameworkEvent(raw, tabId);
+						if (fwEvent) {
+							buffer.push(fwEvent);
+							this.config.invalidateSessionCache();
+							this.checkAutoDetect(fwEvent);
+							if (persistence) {
+								persistence.onNewEvent(fwEvent, this.config.getSessionInfo());
+							}
 						}
 					}
 				}
