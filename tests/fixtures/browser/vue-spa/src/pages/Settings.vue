@@ -22,24 +22,24 @@ const error = ref<string | null>(null);
 const success = ref(false);
 
 const form = reactive({
-  displayName: "",
-  email: "",
-  theme: "light",
+	displayName: "",
+	email: "",
+	theme: "light",
 });
 
 async function handleSubmit() {
-  error.value = null;
-  success.value = false;
-  const res = await fetch("/api/settings", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(form),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    error.value = data.message || `Save failed: ${res.status}`;
-    return;
-  }
-  success.value = true;
+	error.value = null;
+	success.value = false;
+	const res = await fetch("/api/settings", {
+		method: "PUT",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(form),
+	});
+	if (!res.ok) {
+		const data = await res.json().catch(() => ({}));
+		error.value = data.message || `Save failed: ${res.status}`;
+		return;
+	}
+	success.value = true;
 }
 </script>

@@ -20,17 +20,17 @@ const store = useTaskStore();
 const loading = ref(true);
 
 onMounted(async () => {
-  try {
-    await store.fetchTasks();
-  } finally {
-    loading.value = false;
-  }
+	try {
+		await store.fetchTasks();
+	} finally {
+		loading.value = false;
+	}
 });
 
 async function handleToggleStatus(id: number) {
-  const task = store.tasks.find((t) => t.id === id);
-  if (!task) return;
-  const nextStatus = task.status === "todo" ? "in-progress" : task.status === "in-progress" ? "done" : "todo";
-  await store.updateTask(id, { status: nextStatus });
+	const task = store.tasks.find((t) => t.id === id);
+	if (!task) return;
+	const nextStatus = task.status === "todo" ? "in-progress" : task.status === "in-progress" ? "done" : "todo";
+	await store.updateTask(id, { status: nextStatus });
 }
 </script>

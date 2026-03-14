@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { ProductCard } from "../components/ProductCard.js";
 import type { Product } from "../api.js";
 import { fetchProducts } from "../api.js";
+import { ProductCard } from "../components/ProductCard.js";
 
 export function Home() {
 	const [products, setProducts] = useState<Product[]>([]);

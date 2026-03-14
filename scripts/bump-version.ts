@@ -21,10 +21,10 @@ if (!match) {
 	process.exit(1);
 }
 
-let [, majorStr, minorStr, patchStr] = match;
-let major = parseInt(majorStr, 10);
-let minor = parseInt(minorStr, 10);
-let patch = parseInt(patchStr, 10);
+const [, majorStr, minorStr, patchStr] = match;
+const major = parseInt(majorStr, 10);
+const minor = parseInt(minorStr, 10);
+const patch = parseInt(patchStr, 10);
 
 let nextVersion: string;
 

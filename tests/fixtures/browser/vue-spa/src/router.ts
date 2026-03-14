@@ -1,11 +1,11 @@
 import { createRouter, createWebHistory } from "vue-router";
-import Home from "./pages/Home.vue";
-import TaskList from "./pages/TaskList.vue";
-import TaskDetail from "./pages/TaskDetail.vue";
+import BugRoute from "./pages/BugRoute.vue";
 import CreateTask from "./pages/CreateTask.vue";
+import Home from "./pages/Home.vue";
 import Login from "./pages/Login.vue";
 import Settings from "./pages/Settings.vue";
-import BugRoute from "./pages/BugRoute.vue";
+import TaskDetail from "./pages/TaskDetail.vue";
+import TaskList from "./pages/TaskList.vue";
 
 export const router = createRouter({
 	history: createWebHistory(),

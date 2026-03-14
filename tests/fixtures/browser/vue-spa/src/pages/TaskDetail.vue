@@ -32,19 +32,19 @@ const taskId = computed(() => Number(route.params.id));
 const task = computed(() => store.tasks.find((t) => t.id === taskId.value) ?? null);
 
 onMounted(async () => {
-  try {
-    if (store.tasks.length === 0) await store.fetchTasks();
-  } finally {
-    loading.value = false;
-  }
+	try {
+		if (store.tasks.length === 0) await store.fetchTasks();
+	} finally {
+		loading.value = false;
+	}
 });
 
 async function handleStatusChange(e: Event) {
-  const status = (e.target as HTMLSelectElement).value as "todo" | "in-progress" | "done";
-  await store.updateTask(taskId.value, { status });
+	const status = (e.target as HTMLSelectElement).value as "todo" | "in-progress" | "done";
+	await store.updateTask(taskId.value, { status });
 }
 
 async function handleAddComment(id: number, text: string) {
-  await store.addComment(id, text);
+	await store.addComment(id, text);
 }
 </script>

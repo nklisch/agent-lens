@@ -377,7 +377,10 @@ describe("computeViewportDiff — removed variables", () => {
 			totalFrames: 1,
 			stack: [{ file: "test.py", shortFile: "test.py", line: 10, function: "main", arguments: "" }],
 			source: [{ line: 10, text: "  x = 1" }],
-			locals: [{ name: "x", value: "1" }, { name: "temp", value: "99" }],
+			locals: [
+				{ name: "x", value: "1" },
+				{ name: "temp", value: "99" },
+			],
 		};
 		const curr: ViewportSnapshot = {
 			file: "test.py",

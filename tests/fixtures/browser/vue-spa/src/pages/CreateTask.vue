@@ -30,24 +30,24 @@ const error = ref<string | null>(null);
 const submitting = ref(false);
 
 const form = reactive({
-  title: "",
-  description: "",
-  priority: "medium" as "low" | "medium" | "high",
-  dueDate: "",
-  assignee: "",
-  status: "todo" as const,
+	title: "",
+	description: "",
+	priority: "medium" as "low" | "medium" | "high",
+	dueDate: "",
+	assignee: "",
+	status: "todo" as const,
 });
 
 async function handleSubmit() {
-  error.value = null;
-  submitting.value = true;
-  try {
-    const task = await store.createTask({ ...form });
-    router.push(`/tasks/${task.id}`);
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : "Failed to create task";
-  } finally {
-    submitting.value = false;
-  }
+	error.value = null;
+	submitting.value = true;
+	try {
+		const task = await store.createTask({ ...form });
+		router.push(`/tasks/${task.id}`);
+	} catch (e) {
+		error.value = e instanceof Error ? e.message : "Failed to create task";
+	} finally {
+		submitting.value = false;
+	}
 }
 </script>

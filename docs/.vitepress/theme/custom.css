@@ -107,7 +107,9 @@ div[class*="language-"] {
 	border-radius: var(--kt-radius-card);
 	padding: var(--kt-card-padding);
 	box-shadow: var(--kt-shadow);
-	transition: border-color var(--kt-transition), box-shadow var(--kt-transition);
+	transition:
+		border-color var(--kt-transition),
+		box-shadow var(--kt-transition);
 }
 
 .kt-card:hover {
@@ -147,7 +149,9 @@ div[class*="language-"] {
 	font-family: var(--vp-font-family-base);
 	font-weight: 500;
 	cursor: pointer;
-	transition: border-color var(--kt-transition), color var(--kt-transition);
+	transition:
+		border-color var(--kt-transition),
+		color var(--kt-transition);
 	text-decoration: none;
 	display: inline-block;
 }

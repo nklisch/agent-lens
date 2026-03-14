@@ -1,11 +1,12 @@
-import React, { useEffect } from "react";
+import type React from "react";
+import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useNavigate } from "react-router-dom";
-import { Navbar } from "./components/Navbar.js";
-import { InfiniteUpdater } from "./bugs/InfiniteUpdater.js";
-import { StalePrice } from "./bugs/StalePrice.js";
-import { LeakyInterval } from "./bugs/LeakyInterval.js";
 import { ContextFlood } from "./bugs/ContextFlood.js";
+import { InfiniteUpdater } from "./bugs/InfiniteUpdater.js";
+import { LeakyInterval } from "./bugs/LeakyInterval.js";
+import { StalePrice } from "./bugs/StalePrice.js";
+import { Navbar } from "./components/Navbar.js";
 import { Cart } from "./pages/Cart.js";
 import { Checkout } from "./pages/Checkout.js";
 import { Home } from "./pages/Home.js";

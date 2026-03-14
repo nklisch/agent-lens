@@ -7,7 +7,7 @@ import { basename, extname, join, resolve as resolvePath } from "node:path";
 import { promisify } from "node:util";
 import { getErrorMessage, LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, checkCommand, CONNECT_SLOW, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
+import { allocatePort, CONNECT_SLOW, checkCommand, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
 import { downloadAndCacheNetcoredbg, getNetcoredbgBinaryPath, isNetcoredbgCached } from "./netcoredbg.js";
 
 const execAsync = promisify(exec);

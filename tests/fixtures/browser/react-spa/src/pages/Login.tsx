@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import type React from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../store.js";
 
@@ -22,7 +23,11 @@ export function Login() {
 	return (
 		<div data-testid="login-page">
 			<h1>Login</h1>
-			{error && <div data-testid="login-error" style={{ color: "red" }}>{error}</div>}
+			{error && (
+				<div data-testid="login-error" style={{ color: "red" }}>
+					{error}
+				</div>
+			)}
 			<form data-testid="login-form" onSubmit={handleSubmit}>
 				<input data-testid="username" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
 				<input data-testid="password" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />

@@ -1,15 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-	DIFF_INCLUDES,
-	EVENT_TYPES,
-	FRAMEWORKS,
-	INSPECT_INCLUDES,
-	OVERVIEW_INCLUDES,
-	SEARCHABLE_EVENT_TYPES,
-	SESSION_STATES,
-	SESSION_STATUSES,
-	STEP_DIRECTIONS,
-} from "../../../src/core/enums.js";
+import { DIFF_INCLUDES, EVENT_TYPES, FRAMEWORKS, INSPECT_INCLUDES, OVERVIEW_INCLUDES, SEARCHABLE_EVENT_TYPES, SESSION_STATES, SESSION_STATUSES, STEP_DIRECTIONS } from "../../../src/core/enums.js";
 
 describe("enums — single source of truth", () => {
 	it("SESSION_STATES is a superset of SESSION_STATUSES", () => {

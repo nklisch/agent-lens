@@ -22,12 +22,12 @@ const password = ref("");
 const error = ref<string | null>(null);
 
 async function handleSubmit() {
-  error.value = null;
-  try {
-    await auth.login(username.value, password.value);
-    router.push("/");
-  } catch {
-    error.value = "Invalid credentials";
-  }
+	error.value = null;
+	try {
+		await auth.login(username.value, password.value);
+		router.push("/");
+	} catch {
+		error.value = "Invalid credentials";
+	}
 }
 </script>

@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { isAbsolute, join, resolve as resolvePath } from "node:path";
 import { LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, checkCommand, CONNECT_FAST, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
+import { allocatePort, CONNECT_FAST, checkCommand, connectTCP, gracefulDispose, spawnAndWait } from "./helpers.js";
 
 /**
  * Build an augmented PATH that includes common Go binary install locations

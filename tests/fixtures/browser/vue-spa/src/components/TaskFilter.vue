@@ -12,5 +12,6 @@
 
 <script setup lang="ts">
 import { useTaskStore } from "../stores/tasks.js";
+
 const store = useTaskStore();
 </script>

@@ -5,7 +5,7 @@ import type { Socket } from "node:net";
 import { isAbsolute, resolve as resolvePath } from "node:path";
 import { LaunchError } from "../core/errors.js";
 import type { AttachConfig, DAPConnection, DebugAdapter, LaunchConfig, PrerequisiteResult } from "./base.js";
-import { allocatePort, checkCommand, CONNECT_SLOW, connectTCP, detectEarlySpawnFailure, gracefulDispose } from "./helpers.js";
+import { allocatePort, CONNECT_SLOW, checkCommand, connectTCP, detectEarlySpawnFailure, gracefulDispose } from "./helpers.js";
 
 export class RubyAdapter implements DebugAdapter {
 	id = "ruby";

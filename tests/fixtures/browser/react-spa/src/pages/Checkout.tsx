@@ -51,7 +51,11 @@ export function Checkout() {
 	return (
 		<div data-testid="checkout-page">
 			<h1>Checkout — {step === "shipping" ? "Shipping" : "Payment"}</h1>
-			{error && <div data-testid="checkout-error" style={{ color: "red" }}>{error}</div>}
+			{error && (
+				<div data-testid="checkout-error" style={{ color: "red" }}>
+					{error}
+				</div>
+			)}
 
 			{step === "shipping" && (
 				<div data-testid="shipping-form">

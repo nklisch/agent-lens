@@ -74,7 +74,9 @@ const server = Bun.serve({
 
 		// CORS preflight
 		if (req.method === "OPTIONS") {
-			return new Response(null, { headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,PUT,OPTIONS", "Access-Control-Allow-Headers": "Content-Type" } });
+			return new Response(null, {
+				headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,PUT,OPTIONS", "Access-Control-Allow-Headers": "Content-Type" },
+			});
 		}
 
 		// API routes

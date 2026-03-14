@@ -82,14 +82,7 @@ export const FRAMEWORK_CHANGE_TYPES = ["mount", "update", "unmount", "store_muta
 export const FrameworkChangeTypeSchema = z.enum(FRAMEWORK_CHANGE_TYPES);
 export type FrameworkChangeType = z.infer<typeof FrameworkChangeTypeSchema>;
 
-export const ACTION_OBSERVATION_KINDS = [
-	"unexpected_value",
-	"variable_changed",
-	"new_frame",
-	"exception",
-	"bp_hit",
-	"terminated",
-] as const;
+export const ACTION_OBSERVATION_KINDS = ["unexpected_value", "variable_changed", "new_frame", "exception", "bp_hit", "terminated"] as const;
 export const ActionObservationKindSchema = z.enum(ACTION_OBSERVATION_KINDS);
 export type ActionObservationKind = z.infer<typeof ActionObservationKindSchema>;
 
@@ -123,14 +116,7 @@ export type ExportFormat = z.infer<typeof ExportFormatSchema>;
 // Used by daemon protocol (camelCase) and core types.
 // MCP tools derive a snake_case version from these keys.
 
-export const VIEWPORT_CONFIG_FIELDS = [
-	"sourceContextLines",
-	"stackDepth",
-	"localsMaxDepth",
-	"localsMaxItems",
-	"stringTruncateLength",
-	"collectionPreviewItems",
-] as const;
+export const VIEWPORT_CONFIG_FIELDS = ["sourceContextLines", "stackDepth", "localsMaxDepth", "localsMaxItems", "stringTruncateLength", "collectionPreviewItems"] as const;
 
 /** Zod schema for optional camelCase viewport config (used by daemon protocol). */
 export const ViewportConfigPartialSchema = z.object({

@@ -1,10 +1,10 @@
 import { resolve as resolvePath } from "node:path";
 import { defineCommand } from "citty";
 import { listAdapters, registerAllAdapters } from "../../adapters/registry.js";
+import { STEP_DIRECTIONS, type StepDirection } from "../../core/enums.js";
 import { configToOptions, listConfigurations, parseLaunchJson } from "../../core/launch-json.js";
 import { DaemonClient, ensureDaemon } from "../../daemon/client.js";
 import type { BreakpointsListPayload, BreakpointsResultPayload, LaunchResultPayload, StatusResultPayload, StopResultPayload, ThreadInfoPayload, ViewportPayload } from "../../daemon/protocol.js";
-import { STEP_DIRECTIONS, type StepDirection } from "../../core/enums.js";
 import { getDaemonSocketPath } from "../../daemon/protocol.js";
 import { listDetectors, registerAllDetectors } from "../../frameworks/index.js";
 

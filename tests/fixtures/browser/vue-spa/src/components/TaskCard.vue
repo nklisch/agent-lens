@@ -22,8 +22,8 @@ const props = defineProps<{ task: Task }>();
 defineEmits<{ "toggle-status": [id: number] }>();
 
 const statusColor = computed(() => {
-  if (props.task.status === "done") return "green";
-  if (props.task.status === "in-progress") return "orange";
-  return "gray";
+	if (props.task.status === "done") return "green";
+	if (props.task.status === "in-progress") return "orange";
+	return "gray";
 });
 </script>

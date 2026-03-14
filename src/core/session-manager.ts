@@ -7,13 +7,14 @@ import { detectFramework } from "../frameworks/index.js";
 import { compressionNote, computeEffectiveConfig, estimateTokens, resolveCompressionTier, shouldUseDiffMode } from "./compression.js";
 import type { StopResult } from "./dap-client.js";
 import { DAPClient } from "./dap-client.js";
+import type { SessionState, StepDirection } from "./enums.js";
 import { AdapterNotFoundError, AdapterPrerequisiteError, SessionLimitError, SessionNotFoundError, SessionStateError } from "./errors.js";
-import { type SessionState, type StepDirection } from "./enums.js";
 import { extractObservations, formatSessionLogDetailed, formatSessionLogSummary } from "./session-logger.js";
 import type { Breakpoint, EnrichedActionLogEntry, ExceptionInfo, ResourceLimits, SessionStatus, StopReason, ThreadInfo, TokenStats, Variable, ViewportConfig, ViewportSnapshot } from "./types.js";
 import { ResourceLimitsSchema, ViewportConfigSchema } from "./types.js";
 
 export type { SessionState };
+
 import { convertDAPVariables, renderDAPVariable } from "./value-renderer.js";
 import { computeViewportDiff, isDiffEligible, renderViewport, renderViewportDiff } from "./viewport.js";
 
@@ -98,7 +99,6 @@ export interface SessionCapabilities {
 }
 
 // --- Session State Machine ---
-
 
 // --- Action Log Entry (kept for backward compat; EnrichedActionLogEntry is now used internally) ---
 

@@ -24,11 +24,7 @@ export function StalePrice() {
 		<div data-testid="stale-price">
 			<p>Real total: ${realTotal.toFixed(2)}</p>
 			{showStale && <p data-testid="stale-total">Stale total: ${getStaleTotal().toFixed(2)}</p>}
-			<button
-				type="button"
-				data-testid="add-product"
-				onClick={() => addToCart({ id: 99, name: "Test Product", price: 10.0 })}
-			>
+			<button type="button" data-testid="add-product" onClick={() => addToCart({ id: 99, name: "Test Product", price: 10.0 })}>
 				Add $10 Item
 			</button>
 		</div>

@@ -13,16 +13,15 @@ const active = ref(false);
 
 // Intentional bug: watcher mutates its own source = infinite loop
 watch(count, (val) => {
-  if (!active.value) return;
-  count.value = val + 1;
+	if (!active.value) return;
+	count.value = val + 1;
 });
 
 onMounted(() => {
-  (window as Window & { __TEST_CONTROLS__?: Record<string, () => void> }).__TEST_CONTROLS__ =
-    (window as Window & { __TEST_CONTROLS__?: Record<string, () => void> }).__TEST_CONTROLS__ || {};
-  (window as Window & { __TEST_CONTROLS__: Record<string, () => void> }).__TEST_CONTROLS__.activateInfiniteWatcher = () => {
-    active.value = true;
-    count.value = 1;
-  };
+	(window as Window & { __TEST_CONTROLS__?: Record<string, () => void> }).__TEST_CONTROLS__ = (window as Window & { __TEST_CONTROLS__?: Record<string, () => void> }).__TEST_CONTROLS__ || {};
+	(window as Window & { __TEST_CONTROLS__: Record<string, () => void> }).__TEST_CONTROLS__.activateInfiniteWatcher = () => {
+		active.value = true;
+		count.value = 1;
+	};
 });
 </script>

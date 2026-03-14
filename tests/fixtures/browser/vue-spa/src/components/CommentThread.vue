@@ -23,8 +23,8 @@ const emit = defineEmits<{ "add-comment": [taskId: number, text: string] }>();
 const newComment = ref("");
 
 function submitComment() {
-  if (!newComment.value.trim()) return;
-  emit("add-comment", props.taskId, newComment.value.trim());
-  newComment.value = "";
+	if (!newComment.value.trim()) return;
+	emit("add-comment", props.taskId, newComment.value.trim());
+	newComment.value = "";
 }
 </script>

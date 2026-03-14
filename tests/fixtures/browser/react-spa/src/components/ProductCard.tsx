@@ -16,12 +16,7 @@ export function ProductCard({ product }: Props) {
 			<Link to={`/product/${product.id}`} data-testid={`product-link-${product.id}`}>
 				View
 			</Link>
-			<button
-				type="button"
-				data-testid="add-to-cart"
-				onClick={() => addToCart(product)}
-				style={{ marginLeft: "0.5rem" }}
-			>
+			<button type="button" data-testid="add-to-cart" onClick={() => addToCart(product)} style={{ marginLeft: "0.5rem" }}>
 				Add to Cart
 			</button>
 		</div>

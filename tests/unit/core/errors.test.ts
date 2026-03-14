@@ -2,19 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
 	AdapterNotFoundError,
 	AdapterPrerequisiteError,
-	KrometrailError,
+	BrowserRecorderStateError,
 	CDPConnectionError,
 	ChromeNotFoundError,
 	DAPClientDisposedError,
 	DAPConnectionError,
 	DAPTimeoutError,
+	getErrorMessage,
+	KrometrailError,
 	LaunchError,
 	SessionLimitError,
 	SessionNotFoundError,
 	SessionStateError,
 	TabNotFoundError,
-	BrowserRecorderStateError,
-	getErrorMessage,
 } from "../../../src/core/errors.js";
 
 describe("getErrorMessage", () => {

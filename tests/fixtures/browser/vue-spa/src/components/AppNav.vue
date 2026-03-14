@@ -14,5 +14,6 @@
 
 <script setup lang="ts">
 import { useAuthStore } from "../stores/auth.js";
+
 const auth = useAuthStore();
 </script>

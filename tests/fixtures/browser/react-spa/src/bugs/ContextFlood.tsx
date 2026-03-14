@@ -11,7 +11,11 @@ const ThemeContext = createContext<ThemeContextValue>({ theme: "light", toggleTh
 const consumers = Array.from({ length: 30 }, (_, i) => {
 	function Consumer() {
 		const { theme } = useContext(ThemeContext);
-		return <span data-testid={`consumer-${i}`} style={{ display: "none" }}>{theme}</span>;
+		return (
+			<span data-testid={`consumer-${i}`} style={{ display: "none" }}>
+				{theme}
+			</span>
+		);
 	}
 	Consumer.displayName = `ThemeConsumer${i}`;
 	return Consumer;

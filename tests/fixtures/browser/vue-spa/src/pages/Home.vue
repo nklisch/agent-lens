@@ -22,12 +22,12 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 
 onMounted(async () => {
-  try {
-    await store.fetchTasks();
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : "Failed to load";
-  } finally {
-    loading.value = false;
-  }
+	try {
+		await store.fetchTasks();
+	} catch (e) {
+		error.value = e instanceof Error ? e.message : "Failed to load";
+	} finally {
+		loading.value = false;
+	}
 });
 </script>

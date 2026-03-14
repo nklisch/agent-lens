@@ -72,7 +72,7 @@ async function installCliWrapper(workDir: string): Promise<string> {
 function generateMcpConfig(workDir: string): object {
 	return {
 		mcpServers: {
-			"krometrail": {
+			krometrail: {
 				command: "bun",
 				args: ["run", MCP_SERVER_PATH],
 				cwd: workDir,

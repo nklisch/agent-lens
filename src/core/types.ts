@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { type ActionObservationKind, type SessionStatus, type StopReason } from "./enums.js";
+import type { ActionObservationKind, SessionStatus, StopReason } from "./enums.js";
 
 export type { SessionStatus, StopReason } from "./enums.js";
 

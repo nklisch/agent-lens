@@ -17,17 +17,16 @@ const state = reactive({ x: 0, y: 0 });
 const { x, y } = state;
 
 function increment() {
-  // This updates state but x/y in template won't update (lost reactivity)
-  state.x += 1;
-  state.y += 1;
+	// This updates state but x/y in template won't update (lost reactivity)
+	state.x += 1;
+	state.y += 1;
 }
 
 onMounted(() => {
-  (window as Window & { __TEST_CONTROLS__?: Record<string, () => void> }).__TEST_CONTROLS__ =
-    (window as Window & { __TEST_CONTROLS__?: Record<string, () => void> }).__TEST_CONTROLS__ || {};
-  (window as Window & { __TEST_CONTROLS__: Record<string, () => void> }).__TEST_CONTROLS__.activateLostReactivity = () => {
-    increment();
-  };
+	(window as Window & { __TEST_CONTROLS__?: Record<string, () => void> }).__TEST_CONTROLS__ = (window as Window & { __TEST_CONTROLS__?: Record<string, () => void> }).__TEST_CONTROLS__ || {};
+	(window as Window & { __TEST_CONTROLS__: Record<string, () => void> }).__TEST_CONTROLS__.activateLostReactivity = () => {
+		increment();
+	};
 });
 
 // Suppress linting: x, y are used in template but TypeScript doesn't see it
