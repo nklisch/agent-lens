@@ -10,6 +10,9 @@ src/
   mcp/          MCP server entry + tool handlers (@modelcontextprotocol/sdk)
   core/         Session manager, viewport renderer, DAP client, value renderer
   adapters/     Language-specific debugger adapters
+  browser/      Browser CDP session, lens pipeline, investigation tools
+  daemon/       Background daemon for browser session persistence
+  frameworks/   Framework detection (pytest, jest, Spring, etc.)
   index.ts      Library exports
 tests/
   unit/           Pure logic tests (mocks OK)

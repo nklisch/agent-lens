@@ -18,6 +18,9 @@ interface DebugAdapter {
   /** File extensions this adapter handles */
   fileExtensions: string[];
 
+  /** Alternative language names that map to this adapter, e.g., ["javascript", "typescript", "ts", "js"] */
+  aliases?: string[];
+
   /** Human-readable name for error messages */
   displayName: string;
 
@@ -41,9 +44,10 @@ interface PrerequisiteResult {
 }
 
 interface DAPConnection {
-  reader: ReadableStream;     // DAP messages from debugger
-  writer: WritableStream;     // DAP messages to debugger
+  reader: Readable;           // DAP messages from debugger (Node stream)
+  writer: Writable;           // DAP messages to debugger (Node stream)
   process?: ChildProcess;     // The debugee process, if launched
+  launchArgs?: Record<string, unknown>;  // Adapter-specific DAP launch request fields
 }
 
 interface LaunchConfig {
@@ -58,6 +62,7 @@ interface AttachConfig {
   pid?: number;
   port?: number;
   host?: string;
+  env?: Record<string, string>;
 }
 ```
 
@@ -66,11 +71,15 @@ interface AttachConfig {
 | Language | Debugger | Extensions | Launch Pattern |
 |----------|----------|------------|----------------|
 | Python | debugpy | `.py` | `python -m debugpy --listen 0:PORT --wait-for-client script.py` |
-| Node.js | built-in inspector | `.js`, `.ts`, `.mjs` | `node --inspect-brk=PORT script.js` |
+| Node.js | built-in inspector | `.js`, `.ts`, `.mjs`, `.cjs`, `.mts`, `.cts`, `.tsx` | `node --inspect-brk=PORT script.js` |
 | Go | delve (dlv) | `.go` | `dlv dap --listen :PORT` |
 | Rust | codelldb | `.rs` | `codelldb --port PORT` |
 | Java | java-debug-adapter | `.java` | `java -agentlib:jdwp=... -jar target.jar` |
-| C/C++ | cppdbg (GDB/LLDB) | `.c`, `.cpp`, `.h` | `gdb --interpreter=dap ./binary` |
+| C/C++ | cppdbg (GDB/LLDB) | `.c`, `.cpp`, `.cc`, `.cxx`, `.h`, `.hpp` | `gdb --interpreter=dap ./binary` |
+| Ruby | rdbg | `.rb` | `rdbg --open --port PORT script.rb` |
+| C# | netcoredbg | `.cs` | `netcoredbg --interpreter=dap` |
+| Swift | lldb-dap | `.swift` | `lldb-dap --port PORT` |
+| Kotlin | kotlin-debug-adapter | `.kt`, `.kts` | `kotlin-debug-adapter` |
 
 > **Prior art note:** Existing projects take different approaches to adapter management. mcp-debugger uses a dynamic adapter registry with runtime discovery, lazy loading, and adapter vendoring (downloading vscode-js-debug and CodeLLDB during install). AIDB builds adapters in CI and downloads them on first run. debugger-mcp uses Docker containers with pre-installed debuggers. dap-mcp uses a config-driven approach with Pydantic discriminated unions. Krometrail keeps the adapter boundary deliberately narrow — the contract below is all an adapter needs to implement. See [PRIOR_ART.md](PRIOR_ART.md).
 
