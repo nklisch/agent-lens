@@ -1,10 +1,10 @@
 <template>
 	<section class="kt-section viewport-demo-section">
 		<div class="section-inner">
-			<h2 class="section-title">The Debug Viewport</h2>
+			<h2 class="section-title">Real Debugging, Not Guessing</h2>
 			<p class="section-subtitle">
-				A token-aware, compressed representation of the debugger state — call stack, source context, variables, and
-				watch expressions in one structured view.
+				Your agent sets breakpoints, steps through code, and inspects variables — just like you would.
+				No more reading stack traces and hoping for the best.
 			</p>
 
 			<div class="demo-controls">

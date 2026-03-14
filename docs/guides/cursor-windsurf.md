@@ -4,7 +4,7 @@ Both Cursor and Windsurf support MCP servers. Krometrail integrates via MCP to g
 
 ## Cursor Setup
 
-Add to your Cursor MCP configuration at `~/.cursor/mcp.json`:
+Add to your Cursor MCP configuration at `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` in your project root (per-project):
 
 ```json
 {
@@ -34,7 +34,7 @@ Restart Cursor after saving the config. The `debug_*` tools will appear in the A
 
 ## Windsurf Setup
 
-Add to your Windsurf MCP configuration at `~/.windsurf/mcp_config.json` (or via the Windsurf settings UI):
+Add to your Windsurf MCP configuration at `~/.codeium/windsurf/mcp_config.json` (or click the MCPs icon in the Cascade panel and select "Configure"):
 
 ```json
 {

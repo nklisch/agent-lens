@@ -7,11 +7,11 @@ description: What browser observation captures, why it matters for AI agents, an
 
 Krometrail connects to Chrome via CDP and records everything happening in a browser session — without requiring any changes to the application code.
 
-## Why It Matters for Agents
+## Why It Matters
 
-AI agents debugging web applications face a fundamental problem: they can read source code and error messages, but they cannot see what the browser is actually doing. Network requests that return unexpected data, console errors that appear only under specific conditions, React components re-rendering in loops — these are invisible without direct browser access.
+When you're debugging a web app, you can see the bug happen — a spinner that never stops, a form that silently fails, a page that loads wrong data. But when you hand the problem to your coding agent, all it has is source code and maybe an error message.
 
-Browser observation gives agents a complete session transcript they can query after the fact, or in real time.
+Browser observation bridges that gap. You browse your app normally, drop markers when something goes wrong, and your agent gets a complete session transcript — network requests, console errors, framework state, screenshots — everything it needs to investigate without you describing the bug in chat.
 
 ## What Gets Captured
 
@@ -33,22 +33,14 @@ Browser observation gives agents a complete session transcript they can query af
 3. The agent investigates the recorded session using search, inspect, and diff tools
 4. Framework state (if enabled) is captured via injected DevTools hook scripts that fire before any page code runs
 
-## Quick Start
+## Typical Workflow
 
-```bash
-# Start recording
-krometrail browser start http://localhost:3000 --framework-state
+1. **You** start a recording session (via your agent or CLI)
+2. **You** use the app in Chrome — click around, fill forms, reproduce the bug
+3. **You** drop markers at key moments ("form submitted", "page broke")
+4. **Your agent** searches the recorded session, inspects events, diffs state changes, and traces the bug to source code
 
-# Do things in the browser...
-krometrail browser mark "submitted the form"
-
-# Stop recording
-krometrail browser stop
-
-# Investigate
-krometrail session list --has-errors
-krometrail session search <session-id> --event-types network_response --status-codes 500
-```
+The agent accesses the session data through MCP tools (`chrome_start`, `session_search`, `session_inspect`, `session_diff`) or equivalent CLI commands.
 
 ## Next Steps
 

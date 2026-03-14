@@ -8,7 +8,7 @@
 		<section class="kt-section quick-start-section">
 			<div class="section-inner">
 				<h2 class="section-title">Quick Start</h2>
-				<p class="section-subtitle">Three ways to get Krometrail into your agent's hands.</p>
+				<p class="section-subtitle">Set up in 2 minutes. Works with any MCP-compatible agent.</p>
 				<SetupTabs :tabs="setupTabs" />
 			</div>
 		</section>
@@ -18,7 +18,7 @@
 		<footer class="kt-footer">
 			<div class="footer-inner">
 				<div class="footer-links">
-					<a :href="withBase('/guide/')">Docs</a>
+					<a :href="withBase('/guide/getting-started')">Docs</a>
 					<a href="https://github.com/nklisch/krometrail" target="_blank" rel="noopener">GitHub</a>
 				</div>
 				<p class="footer-license">MIT License</p>

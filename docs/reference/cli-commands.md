@@ -5,6 +5,8 @@ description: Complete reference for all krometrail CLI commands.
 
 # CLI Command Reference
 
+The CLI is an alternative interface to the same tooling that agents access via MCP. Every `debug_*` and `session_*` MCP tool has a corresponding CLI command. Many agent setups prefer CLI tools for their transparency, composability, and ease of scripting. The CLI is also useful for CI pipelines and convenience operations like `doctor` and `skill`.
+
 All commands output the viewport to stdout as structured plain text. Exit codes: 0 for success, 1 for errors, 2 for timeouts.
 
 ## Global Flags
@@ -212,9 +214,6 @@ krometrail session replay-context <session-id> --format cypress
 ```bash
 # Check installed adapters/debuggers
 krometrail doctor
-
-# Print the agent skill file (for Codex system prompts)
-krometrail skill
 
 # Version
 krometrail --version

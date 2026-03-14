@@ -4,7 +4,13 @@ Krometrail gives Claude Code runtime debugging — it can set breakpoints, inspe
 
 ## Setup: MCP Server (Recommended)
 
-Add to your Claude Code MCP config (`~/.claude/mcp.json` or project `.mcp.json`):
+Add via the CLI or edit the project `.mcp.json` directly:
+
+```bash
+claude mcp add --transport stdio --scope project krometrail -- npx krometrail mcp
+```
+
+Or add to `.mcp.json` in your project root (shared with your team):
 
 ```json
 {
@@ -32,23 +38,14 @@ Or with a compiled binary:
 
 Claude discovers the `debug_*` tools automatically — no CLAUDE.md changes needed.
 
-## Setup: CLI with Skill File (Alternative)
+## Setup: CLI with Skill
 
-Use the CLI path when you want Claude to use bash commands instead of MCP tools.
+The CLI provides the same debugging capabilities as the MCP tools, accessed through bash commands. Some setups prefer CLI tools for their transparency and scriptability.
 
-Print the skill file and append it to your project's CLAUDE.md:
+Install the krometrail skill:
 
 ```bash
-npx krometrail skill >> CLAUDE.md
-```
-
-Or reference it manually:
-
-```markdown
-## Debugging
-
-You have access to `krometrail` for runtime debugging.
-Run `krometrail --help` for available commands.
+skilltap install krometrail
 ```
 
 ## Verification
@@ -75,7 +72,7 @@ Claude Code will:
 ## Tips
 
 - **MCP path is zero-config** — Claude discovers tools automatically from the server
-- **CLI path** gives Claude bash access to the full command set including `krometrail launch`, `krometrail break`, etc.
+- **CLI path** exposes the same tools as bash commands — transparent, scriptable, and preferred by some agent setups
 - **Let Claude choose breakpoints** — it knows the code better after reading it
 - **Conditional breakpoints** are powerful for loops: `krometrail break app.py:25 when discount < 0`
 - **The viewport is compact** (~400 tokens per stop) so Claude can take many debug steps without exhausting context

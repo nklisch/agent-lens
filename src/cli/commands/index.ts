@@ -630,16 +630,6 @@ export const outputCommand = defineCommand({
 	},
 });
 
-export const skillCommand = defineCommand({
-	meta: { name: "skill", description: "Print the agent skill file to stdout" },
-	args: {},
-	async run() {
-		const skillPath = new URL("../../../skill.md", import.meta.url);
-		const content = await Bun.file(skillPath).text();
-		process.stdout.write(content);
-	},
-});
-
 // --- Attach ---
 
 export const attachCommand = defineCommand({

@@ -31,11 +31,11 @@ export default defineConfig({
 
 	themeConfig: {
 		nav: [
-			{ text: "Guide", link: "/guide/" },
-			{ text: "Browser", link: "/browser/" },
-			{ text: "Debugging", link: "/debugging/" },
-			{ text: "Languages", link: "/languages/" },
-			{ text: "Reference", link: "/reference/" },
+			{ text: "Guide", link: "/guide/getting-started" },
+			{ text: "Browser", link: "/browser/overview" },
+			{ text: "Debugging", link: "/debugging/overview" },
+			{ text: "Languages", link: "/languages/python" },
+			{ text: "Reference", link: "/reference/mcp-tools" },
 		],
 
 		sidebar: {
@@ -43,7 +43,7 @@ export default defineConfig({
 				{
 					text: "Guide",
 					items: [
-						{ text: "Getting Started", link: "/guide/" },
+						{ text: "Getting Started", link: "/guide/getting-started" },
 						{ text: "MCP Configuration", link: "/guide/mcp-configuration" },
 						{ text: "CLI Installation", link: "/guide/cli-installation" },
 						{ text: "Your First Debug Session", link: "/guide/first-debug-session" },
@@ -54,7 +54,7 @@ export default defineConfig({
 				{
 					text: "Browser Observation",
 					items: [
-						{ text: "Overview", link: "/browser/" },
+						{ text: "Overview", link: "/browser/overview" },
 						{ text: "Recording Sessions", link: "/browser/recording-sessions" },
 						{
 							text: "Investigation Tools",
@@ -68,8 +68,8 @@ export default defineConfig({
 						{
 							text: "Framework Observation",
 							items: [
-								{ text: "React", link: "/browser/framework/react" },
-								{ text: "Vue", link: "/browser/framework/vue" },
+								{ text: "React", link: "/browser/framework-observation/react" },
+								{ text: "Vue", link: "/browser/framework-observation/vue" },
 							],
 						},
 						{ text: "Markers & Screenshots", link: "/browser/markers-screenshots" },
@@ -80,7 +80,7 @@ export default defineConfig({
 				{
 					text: "Runtime Debugging",
 					items: [
-						{ text: "Overview", link: "/debugging/" },
+						{ text: "Overview", link: "/debugging/overview" },
 						{ text: "Breakpoints & Stepping", link: "/debugging/breakpoints-stepping" },
 						{ text: "Variables & Evaluation", link: "/debugging/variables-evaluation" },
 						{ text: "Watch Expressions", link: "/debugging/watch-expressions" },

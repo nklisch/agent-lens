@@ -9,7 +9,11 @@ Krometrail exposes all its capabilities as MCP tools. Once configured, agents di
 
 ## Claude Code
 
-Add to `~/.claude/mcp.json` (global) or `.mcp.json` in your project root (per-project):
+Add to `.mcp.json` in your project root (shared with your team), or use the CLI:
+
+```bash
+claude mcp add --transport stdio --scope project krometrail -- npx krometrail mcp
+```
 
 ::: code-group
 
@@ -52,7 +56,7 @@ Claude discovers the `debug_*` tools automatically. No CLAUDE.md changes needed.
 
 ## Cursor
 
-Add to `~/.cursor/mcp.json`:
+Add to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` in your project root:
 
 ```json
 {
@@ -69,7 +73,7 @@ Restart Cursor after saving. The `debug_*` tools will appear in the AI's tool li
 
 ## Windsurf
 
-Add to `~/.windsurf/mcp_config.json` or via the Windsurf settings UI:
+Add to `~/.codeium/windsurf/mcp_config.json` or click the MCPs icon in Cascade and select "Configure":
 
 ```json
 {
@@ -85,22 +89,24 @@ Add to `~/.windsurf/mcp_config.json` or via the Windsurf settings UI:
 
 ## OpenAI Codex
 
-Codex works best with the CLI path. Include the skill file in your system prompt:
+Add to `~/.codex/config.toml` (global) or `.codex/config.toml` in your project:
+
+```toml
+[mcp_servers.krometrail]
+command = "npx"
+args = ["krometrail", "mcp"]
+```
+
+Or add via the CLI:
 
 ```bash
-# Print the skill file to stdout
-krometrail skill
+codex mcp add krometrail -- npx krometrail mcp
 ```
 
-Copy the output into your Codex system prompt, or add a shorter reference:
+Codex also supports the CLI path — install the krometrail skill:
 
-```
-You have access to `krometrail` for runtime debugging. Available commands:
-- krometrail launch "<command>" [-b file:line]
-- krometrail continue / step over|into|out
-- krometrail eval "<expression>"
-- krometrail vars [--scope local|global]
-- krometrail stop
+```bash
+skilltap install krometrail
 ```
 
 ## Tool Filtering with `--mcp`

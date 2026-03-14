@@ -5,7 +5,7 @@ description: Install Krometrail and connect it to your AI coding agent in minute
 
 # Getting Started
 
-Krometrail is an MCP server and CLI that gives AI coding agents eyes into running applications. It records browser activity — network requests, console output, DOM mutations, framework state, and screenshots — and lets agents search, inspect, and diff recorded sessions. It also bridges the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) (DAP) for breakpoint-level debugging across 6 languages.
+Krometrail gives your coding agent runtime context it can't get from source code alone. Record a browser session while you reproduce a bug, drop a marker, and hand it off — your agent gets the network requests, console errors, framework state, and screenshots it needs to investigate. It also bridges the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) (DAP) so your agent can set breakpoints, step through code, and inspect variables across 10 languages.
 
 ## Prerequisites
 

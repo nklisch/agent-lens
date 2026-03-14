@@ -12,7 +12,7 @@ import {
 	logCommand,
 	outputCommand,
 	runToCommand,
-	skillCommand,
+
 	sourceCommand,
 	stackCommand,
 	statusCommand,
@@ -70,7 +70,6 @@ const main = defineCommand({
 		output: outputCommand,
 		threads: threadsCommand,
 		doctor: doctorCommand,
-		skill: skillCommand,
 		browser: browserCommand,
 		// Hidden: internal daemon entry point
 		_daemon: () =>

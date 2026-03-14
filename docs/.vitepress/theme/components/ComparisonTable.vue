@@ -2,7 +2,7 @@
 	<section class="kt-section comparison-section">
 		<div class="section-inner">
 			<h2 class="section-title">How Krometrail Compares</h2>
-			<p class="section-subtitle">Purpose-built for AI agents, not adapted from human debugger tools.</p>
+			<p class="section-subtitle">How Krometrail stacks up against other debugging tools for AI agents.</p>
 
 			<div class="table-wrapper">
 				<table class="comparison-table">

@@ -4,58 +4,44 @@
 		<div class="hero-inner">
 			<div class="hero-headline">
 				<h1 class="hero-title">
-					Runtime debugging<br />
-					<span class="hero-title-accent">for AI agents</span>
+					Reproduce the bug.<br />
+					<span class="hero-title-accent">Your agent fixes it.</span>
 				</h1>
 				<p class="hero-subtitle">
-					Give your coding agent a real debugger. Set breakpoints, step through code, inspect variables — and observe the
-					browser session at every step.
+					Browse your app, hit a bug, drop a marker. Krometrail captures the full runtime context — browser state,
+					network, console, framework state — so your coding agent can investigate and fix it without guessing.
 				</p>
 				<div class="hero-ctas">
-					<a :href="withBase('/guide/')" class="kt-btn-primary">Get Started</a>
+					<a :href="withBase('/guide/getting-started')" class="kt-btn-primary">Get Started</a>
 					<a href="https://github.com/nklisch/krometrail" class="kt-btn-outline" target="_blank" rel="noopener">
 						View on GitHub
 					</a>
 				</div>
 			</div>
 
-			<div class="hero-demo">
-				<div class="demo-block demo-browser">
-					<div class="demo-label">Browser Session</div>
-					<pre class="demo-code"><code>── SESSION: checkout-flow ──────────────
-▸ Navigation    3 pages
-▸ Network      47 requests (2 failed)
-▸ Console       8 errors, 3 warnings
-▸ DOM          12 mutations
-▸ Storage       4 changes
-▸ Framework    React — 3 bug patterns
-
-⚑ Markers
-  00:12  "login completed"
-  00:34  "added item to cart"
-  00:51  "checkout submitted"  ← 500 error</code></pre>
+			<div class="hero-workflow">
+				<div class="workflow-step">
+					<div class="step-number">1</div>
+					<div class="step-content">
+						<h3 class="step-title">Reproduce</h3>
+						<p class="step-desc">Use your app in Chrome like normal. Click around, fill forms, trigger the bug.</p>
+					</div>
 				</div>
-
-				<div class="demo-block demo-debug">
-					<div class="demo-label">Debug Viewport</div>
-					<pre class="demo-code"><code>── STOPPED at app/services/order.py:147 ──
-
-Call Stack (3 frames)
-  → order.py:147  apply_discount
-    cart.py:89    checkout
-    views.py:34   post
-
-Source
-  145│   subtotal = sum(item.price for item in items)
-  146│   discount = calculate_discount(code)
-→ 147│   final = subtotal * discount  # Bug: discount is -0.15
-  148│   return Order(total=final)
-
-Locals
-  items     = [Item("Widget", 29.99), Item("Gadget", 49.99)]
-  subtotal  = 79.98
-  discount  = -0.15  ← expected 0.85
-  code      = "SAVE15"</code></pre>
+				<div class="workflow-arrow" aria-hidden="true">&rarr;</div>
+				<div class="workflow-step">
+					<div class="step-number">2</div>
+					<div class="step-content">
+						<h3 class="step-title">Mark</h3>
+						<p class="step-desc">Hit the marker button when something goes wrong. Krometrail captures everything.</p>
+					</div>
+				</div>
+				<div class="workflow-arrow" aria-hidden="true">&rarr;</div>
+				<div class="workflow-step">
+					<div class="step-number">3</div>
+					<div class="step-content">
+						<h3 class="step-title">Hand off</h3>
+						<p class="step-desc">Your agent gets the full session — network, errors, DOM, framework state — and debugs the code.</p>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -122,66 +108,70 @@ import { withBase } from "vitepress";
 	flex-wrap: wrap;
 }
 
-.hero-demo {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
+.hero-workflow {
+	display: flex;
+	align-items: flex-start;
 	gap: 16px;
 	width: 100%;
-	max-width: 960px;
+	max-width: 800px;
 }
 
-.demo-block {
+.workflow-step {
+	flex: 1;
 	background: var(--vp-c-bg-soft);
 	border: 1px solid var(--vp-c-divider);
 	border-radius: var(--kt-radius-card);
-	padding: 20px;
+	padding: 24px 20px;
 	box-shadow: var(--kt-shadow);
+	text-align: center;
 }
 
-.demo-browser {
-	border-left: 3px solid var(--kt-accent-cyan);
-}
-
-.demo-debug {
-	border-left: 3px solid var(--vp-c-brand-1);
-}
-
-.demo-label {
-	font-size: 0.75rem;
-	font-weight: 600;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: var(--vp-c-text-3);
-	margin-bottom: 12px;
-}
-
-.demo-browser .demo-label {
-	color: var(--kt-accent-cyan);
-}
-
-.demo-debug .demo-label {
+.step-number {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: var(--vp-c-brand-soft);
+	border: 1px solid var(--vp-c-brand-1);
 	color: var(--vp-c-brand-1);
+	font-size: 0.85rem;
+	font-weight: 700;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 auto 12px;
 }
 
-.demo-code {
-	margin: 0;
-	background: transparent !important;
-	border: none !important;
-	padding: 0 !important;
-	overflow-x: auto;
-}
-
-.demo-code code {
-	font-family: var(--vp-font-family-mono);
-	font-size: 0.78rem;
-	line-height: 1.6;
+.step-title {
+	font-size: 1rem;
+	font-weight: 600;
 	color: var(--vp-c-text-1);
-	white-space: pre;
+	margin: 0 0 6px;
+}
+
+.step-desc {
+	font-size: 0.875rem;
+	color: var(--vp-c-text-2);
+	line-height: 1.6;
+	margin: 0;
+}
+
+.workflow-arrow {
+	color: var(--vp-c-text-3);
+	font-size: 1.3rem;
+	margin-top: 40px;
+	flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
-	.hero-demo {
-		grid-template-columns: 1fr;
+	.hero-workflow {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.workflow-arrow {
+		text-align: center;
+		margin-top: 0;
+		transform: rotate(90deg);
 	}
 
 	.hero-section {

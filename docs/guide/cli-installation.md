@@ -5,7 +5,7 @@ description: Install the krometrail CLI via npm, bunx, or as a standalone binary
 
 # CLI Installation
 
-The Krometrail CLI is a first-class interface — not a secondary path. Every MCP tool has a corresponding shell command, and sessions persist across commands via a background daemon.
+The Krometrail CLI exposes the same capabilities as the MCP tools, but as shell commands. Many agent harnesses prefer CLI tools for their transparency and composability — the CLI gives agents explicit, scriptable access to the full debugging toolset. It's also handy for convenience operations like `krometrail doctor`. Sessions persist across commands via a background daemon.
 
 ## Options
 

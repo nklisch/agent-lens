@@ -9,7 +9,7 @@ description: What DAP-based debugging means, the viewport abstraction, and why i
 
 AI coding agents debug software through static code analysis and trial-and-error test execution. This works for surface-level bugs but fails for problems that are only visible at runtime — incorrect runtime values, unexpected mutations, race conditions, off-by-one errors deep in call chains.
 
-Human developers reach for debuggers in exactly these situations. Agents currently cannot.
+Krometrail gives your agent a real debugger. It sets breakpoints, steps through code, and inspects variables — the same workflow you'd use, but automated through MCP tools (or equivalent [CLI commands](/reference/cli-commands)).
 
 ## How Krometrail Bridges DAP
 
