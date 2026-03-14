@@ -344,10 +344,11 @@ export function buildReactInjectionScript(config: Required<ReactObserverConfig>)
 	parts.push("          continue;");
 	parts.push("        }");
 	parts.push("        var tracking = componentTracking.get(fiber);");
+	parts.push("        if (!tracking && fiber.alternate) tracking = componentTracking.get(fiber.alternate);");
 	parts.push("        if (!tracking) {");
 	parts.push("          tracking = { renderCount: 0, renderTimestamps: [], prevState: null, prevProps: null, prevDeps: {}, _staleCount: {} };");
-	parts.push("          componentTracking.set(fiber, tracking);");
 	parts.push("        }");
+	parts.push("        componentTracking.set(fiber, tracking);");
 	parts.push("        var isMount = !fiber.alternate;");
 	parts.push("        var isUpdate = !isMount && (");
 	parts.push("          fiber.memoizedProps !== fiber.alternate.memoizedProps ||");
@@ -386,8 +387,9 @@ export function buildReactInjectionScript(config: Required<ReactObserverConfig>)
 	parts.push("          if (fiber.sibling) stack.push(fiber.sibling);");
 	parts.push("          if (fiber.child) stack.push(fiber.child);");
 	parts.push("        } else {");
-	parts.push("          // Subtree bailout — skip children, push sibling only");
+	parts.push("          // Parent unchanged — still visit children (they may have independent updates)");
 	parts.push("          if (fiber.sibling) stack.push(fiber.sibling);");
+	parts.push("          if (fiber.child) stack.push(fiber.child);");
 	parts.push("        }");
 	parts.push("      }");
 	parts.push("    } catch(e) {}");

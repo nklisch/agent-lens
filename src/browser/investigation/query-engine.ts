@@ -12,6 +12,16 @@ export class QueryEngine {
 		_dataDir: string,
 	) {}
 
+	/** Resolve "latest" to the most recent session ID, or return the ID as-is. */
+	private resolveSessionId(sessionId: string): string {
+		if (sessionId === "latest") {
+			const sessions = this.db.listSessions({ limit: 1 });
+			if (sessions.length === 0) throw new Error("No sessions found");
+			return sessions[0].id;
+		}
+		return sessionId;
+	}
+
 	// --- Session queries ---
 
 	listSessions(filter?: SessionListFilter): SessionSummary[] {
@@ -31,6 +41,7 @@ export class QueryEngine {
 	// --- Overview queries ---
 
 	getOverview(sessionId: string, options?: OverviewOptions): SessionOverview {
+		sessionId = this.resolveSessionId(sessionId);
 		const session = this.db.getSession(sessionId);
 		const markers = this.db.queryMarkers(sessionId);
 
@@ -93,6 +104,7 @@ export class QueryEngine {
 	// --- Search queries ---
 
 	search(sessionId: string, params: SearchParams): EventRow[] {
+		sessionId = this.resolveSessionId(sessionId);
 		// Resolve aroundMarker into a timeRange (only if no explicit timeRange provided)
 		if (params.filters?.aroundMarker && !params.filters.timeRange) {
 			const markers = this.db.queryMarkers(sessionId);
@@ -193,6 +205,7 @@ export class QueryEngine {
 	// --- Inspect queries ---
 
 	inspect(sessionId: string, params: InspectParams): InspectResult {
+		sessionId = this.resolveSessionId(sessionId);
 		const session = this.db.getSession(sessionId);
 		const recordingDir = session.recording_dir;
 
@@ -296,15 +309,16 @@ export class QueryEngine {
 	// --- Convenience helpers for Phase 12 ---
 
 	getSession(sessionId: string): SessionRow {
-		return this.db.getSession(sessionId);
+		return this.db.getSession(this.resolveSessionId(sessionId));
 	}
 
 	getMarkers(sessionId: string): MarkerRow[] {
-		return this.db.queryMarkers(sessionId);
+		return this.db.queryMarkers(this.resolveSessionId(sessionId));
 	}
 
 	getFullEvent(sessionId: string, eventId: string): RecordedEvent | null {
 		try {
+			sessionId = this.resolveSessionId(sessionId);
 			const eventRow = this.db.getEventById(sessionId, eventId);
 			const session = this.db.getSession(sessionId);
 			return EventWriter.readAt(resolve(session.recording_dir, "events.jsonl"), eventRow.detail_offset, eventRow.detail_length);
@@ -319,7 +333,7 @@ export class QueryEngine {
 
 	readNetworkBody(sessionId: string, relPath: string): string | undefined {
 		try {
-			const session = this.db.getSession(sessionId);
+			const session = this.db.getSession(this.resolveSessionId(sessionId));
 			const fullPath = resolve(session.recording_dir, "network", relPath);
 			if (!existsSync(fullPath)) return undefined;
 			return readFileSync(fullPath, "utf-8");

@@ -199,7 +199,7 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			"errors, and network summary. Use this to understand what happened before diving into details. " +
 			"Focus on a specific marker with around_marker.",
 		{
-			session_id: z.string().describe("Session ID from session_list"),
+			session_id: z.string().describe('Session ID from session_list, or "latest" for the most recent session'),
 			include: z.array(OverviewIncludeSchema).optional().describe("What to include. Default: all"),
 			around_marker: z.string().optional().describe("Center overview on this marker ID"),
 			time_range: z
@@ -232,7 +232,7 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			"and structured filters (event type, status code, time range, framework, component, pattern). " +
 			"Use natural language for exploratory search, structured filters for precise queries.",
 		{
-			session_id: z.string().describe("Session ID"),
+			session_id: z.string().describe('Session ID, or "latest" for the most recent session'),
 			query: z.string().optional().describe("Natural language search query, e.g. 'validation error' or 'phone format'"),
 			event_types: z.array(SearchableEventTypeSchema).optional().describe("Filter by event type"),
 			status_codes: z.array(z.number()).optional().describe("Filter network responses by HTTP status code, e.g. [400, 422, 500]"),
@@ -286,7 +286,7 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			"and nearest screenshot. This is the primary evidence-gathering tool. " +
 			"If multiple of event_id, marker_id, and timestamp are provided, precedence is: event_id > marker_id > timestamp.",
 		{
-			session_id: z.string().describe("Session ID"),
+			session_id: z.string().describe('Session ID, or "latest" for the most recent session'),
 			event_id: z.string().optional().describe("Specific event ID (from session_search results)"),
 			marker_id: z.string().optional().describe("Jump to a marker"),
 			timestamp: z.string().optional().describe("ISO timestamp — inspect the moment closest to this time"),
@@ -313,7 +313,7 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			"timestamps or events: URL, form state, storage, new console messages, and network activity. " +
 			"Useful for understanding what happened between page load and an error.",
 		{
-			session_id: z.string().describe("Session ID"),
+			session_id: z.string().describe('Session ID, or "latest" for the most recent session'),
 			from: z.string().describe("First moment — ISO timestamp or event ID"),
 			to: z.string().describe("Second moment — ISO timestamp or event ID"),
 			include: z.array(DiffIncludeSchema).optional().describe("What to diff. Default: form_state, storage, url, console_new, network_new (framework_state must be explicitly requested)"),
@@ -333,7 +333,7 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			"Outputs reproduction steps, test scaffolds (Playwright or Cypress), or a summary. " +
 			"Use this to create actionable artifacts from investigation findings.",
 		{
-			session_id: z.string().describe("Session ID"),
+			session_id: z.string().describe('Session ID, or "latest" for the most recent session'),
 			around_marker: z.string().optional().describe("Focus on events around this marker"),
 			time_range: z
 				.object({

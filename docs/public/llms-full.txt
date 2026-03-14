@@ -3863,6 +3863,8 @@ function processCommit(rendererId, fiberRoot) {
 
 		if (isUserComponent(fiber)) {
 			var tracking = componentTracking.get(fiber);
+			// React double-buffers fibers — check alternate for existing tracking
+			if (!tracking && fiber.alternate) tracking = componentTracking.get(fiber.alternate);
 			if (!tracking) {
 				// New mount
 				tracking = {
@@ -3872,8 +3874,8 @@ function processCommit(rendererId, fiberRoot) {
 					prevProps: null,
 					prevDeps: {}
 				};
-				componentTracking.set(fiber, tracking);
 			}
+			componentTracking.set(fiber, tracking);
 
 			var isMount = !fiber.alternate;
 			var isUpdate = !isMount && (
@@ -4922,7 +4924,7 @@ The official React DevTools extension (`react-devtools-shared` package) is the c
 
 ### Mitigation Strategies
 
-1. **Skip unchanged subtrees**: If `fiber.memoizedProps === fiber.alternate.memoizedProps && fiber.memoizedState === fiber.alternate.memoizedState`, skip the entire subtree (no children changed).
+1. **Always visit children**: Even if a parent component's own props/state are unchanged, its children may have independent state updates. Always push both `fiber.child` and `fiber.sibling` onto the stack. The `MAX_FIBERS_PER_COMMIT` cap (default: 5000) prevents runaway traversal.
 
 2. **Depth limit**: Never serialize state deeper than the configured limit (default: 3 levels). Replace deeper values with `"[Object]"` or `"[Array(n)]"` placeholders.
 
@@ -4930,7 +4932,7 @@ The official React DevTools extension (`react-devtools-shared` package) is the c
 
 4. **Lazy inspection**: On every commit, emit only the component name, change type, and render count. Full state/props diff is computed only for components that match auto-detection patterns or when explicitly requested via `session_inspect`.
 
-5. **WeakMap tracking**: Use `WeakMap<Fiber, ComponentTrackingData>` for render counters and state snapshots. Fibers are garbage-collected when components unmount, so the WeakMap self-cleans.
+5. **WeakMap tracking**: Use `WeakMap<Fiber, ComponentTrackingData>` for render counters and state snapshots. Fibers are garbage-collected when components unmount, so the WeakMap self-cleans. Because React double-buffers fibers (alternating between two instances per component), always check `fiber.alternate` for existing tracking data before creating a new entry.
 
 6. **String truncation**: Truncate string values at 200 characters in event data. The full value is available via `session_inspect`.
 

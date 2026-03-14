@@ -24,7 +24,10 @@ describe.skipIf(SKIP)("E2E Browser: React State Observer", () => {
 				fixturePath: REACT_COUNTER_FIXTURE,
 				frameworkState: ["react"],
 			});
-			// Navigate to the fixture app (already navigated during setup)
+			// Re-navigate so framework injection scripts run on fresh page load.
+			// setupBrowserTest navigates before starting the recorder, so
+			// Page.addScriptToEvaluateOnNewDocument scripts haven't executed yet.
+			await ctx.navigate("/");
 			await ctx.wait(1000); // Wait for React to mount
 
 			// Click increment a few times to generate state update events
@@ -106,6 +109,8 @@ describe.skipIf(SKIP)("E2E Browser: React State Observer", () => {
 				fixturePath: REACT_BUGS_FIXTURE,
 				frameworkState: ["react"],
 			});
+			// Re-navigate so framework injection scripts run on fresh page load
+			await ctx.navigate("/");
 			await ctx.wait(1000); // Wait for React to mount
 		}, 60_000);
 
@@ -123,6 +128,7 @@ describe.skipIf(SKIP)("E2E Browser: React State Observer", () => {
 			const result = await ctx.callTool("session_search", {
 				session_id: "latest",
 				event_types: ["framework_error"],
+				pattern: "infinite_rerender",
 			});
 			expect(result).toContain("infinite_rerender");
 			expect(result).toContain("high");

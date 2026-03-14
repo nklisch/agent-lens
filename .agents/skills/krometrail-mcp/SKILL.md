@@ -69,7 +69,8 @@ Tools: `session_list`, `session_overview`, `session_search`, `session_inspect`, 
 2. `chrome_start(url: '...', profile: 'krometrail')`
 3. `chrome_mark(label: '...')` at key moments
 4. `chrome_stop()`
-5. `session_list()` → `session_overview(session_id: '...')` → `session_search(...)` → `session_inspect(...)`
+5. `session_list()` → `session_overview(session_id: 'latest')` → `session_search(...)` → `session_inspect(...)`
+   - All `session_*` tools accept `session_id: "latest"` to target the most recent session
 
 ---
 

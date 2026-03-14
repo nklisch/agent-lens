@@ -72,15 +72,17 @@ chrome_start()                                  # first/active tab only (default
 ## Investigating Sessions
 
 ```
-session_list()                                              # list recorded sessions
-session_overview(session_id: '...')                         # timeline, markers, errors
-session_search(session_id: '...', status_codes: [422, 500]) # find bad requests
-session_search(session_id: '...', query: 'validation error')# full-text search
-session_inspect(session_id: '...', event_id: '...')         # full event detail + request bodies
-session_diff(session_id: '...', before: '...', after: '...')# compare two moments
-session_replay_context(session_id: '...', format: 'reproduction_steps')
-session_replay_context(session_id: '...', format: 'test_scaffold', test_framework: 'playwright')
+session_list()                                                  # list recorded sessions
+session_overview(session_id: 'latest')                          # timeline, markers, errors
+session_search(session_id: 'latest', status_codes: [422, 500]) # find bad requests
+session_search(session_id: 'latest', query: 'validation error')# full-text search
+session_inspect(session_id: 'latest', event_id: '...')         # full event detail + request bodies
+session_diff(session_id: 'latest', before: '...', after: '...')# compare two moments
+session_replay_context(session_id: 'latest', format: 'reproduction_steps')
+session_replay_context(session_id: 'latest', format: 'test_scaffold', test_framework: 'playwright')
 ```
+
+> **Tip:** All `session_*` tools accept `session_id: "latest"` to target the most recent session, or a specific UUID from `session_list()`.
 
 ## What Gets Recorded
 - Navigation (URL changes, page loads)

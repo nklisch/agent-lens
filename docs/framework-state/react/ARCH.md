@@ -312,6 +312,8 @@ function processCommit(rendererId, fiberRoot) {
 
 		if (isUserComponent(fiber)) {
 			var tracking = componentTracking.get(fiber);
+			// React double-buffers fibers — check alternate for existing tracking
+			if (!tracking && fiber.alternate) tracking = componentTracking.get(fiber.alternate);
 			if (!tracking) {
 				// New mount
 				tracking = {
@@ -321,8 +323,8 @@ function processCommit(rendererId, fiberRoot) {
 					prevProps: null,
 					prevDeps: {}
 				};
-				componentTracking.set(fiber, tracking);
 			}
+			componentTracking.set(fiber, tracking);
 
 			var isMount = !fiber.alternate;
 			var isUpdate = !isMount && (
