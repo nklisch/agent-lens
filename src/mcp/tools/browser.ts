@@ -5,15 +5,7 @@ import type { InspectParams, OverviewOptions, QueryEngine } from "../../browser/
 import { renderDiff, renderInspectResult, renderSearchResults, renderSessionList, renderSessionOverview } from "../../browser/investigation/renderers.js";
 import { ReplayContextGenerator } from "../../browser/investigation/replay-context.js";
 import type { BrowserSessionInfo, Marker } from "../../browser/types.js";
-import {
-	DiffIncludeSchema,
-	FrameworkSchema,
-	InspectIncludeSchema,
-	OverviewIncludeSchema,
-	ReplayFormatSchema,
-	SearchableEventTypeSchema,
-	TestFrameworkSchema,
-} from "../../core/enums.js";
+import { DiffIncludeSchema, FrameworkSchema, InspectIncludeSchema, OverviewIncludeSchema, ReplayFormatSchema, SearchableEventTypeSchema, TestFrameworkSchema } from "../../core/enums.js";
 import { DaemonClient, ensureDaemon } from "../../daemon/client.js";
 import { getDaemonSocketPath } from "../../daemon/protocol.js";
 import { errorResponse, textResponse, toolHandler } from "./utils.js";
@@ -134,15 +126,11 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 	);
 
 	// Tool: chrome_status
-	server.tool(
-		"chrome_status",
-		"Show the current Chrome recording status — whether Chrome is active, how many events and markers have been captured, and which tabs are being recorded.",
-		{},
-		() =>
-			withDaemonClient(
-				(client) => client.call<BrowserSessionInfo | null>("browser.status", {}),
-				(info) => (info ? formatSessionInfo(info) : "No active Chrome recording. Use chrome_start to begin."),
-			),
+	server.tool("chrome_status", "Show the current Chrome recording status — whether Chrome is active, how many events and markers have been captured, and which tabs are being recorded.", {}, () =>
+		withDaemonClient(
+			(client) => client.call<BrowserSessionInfo | null>("browser.status", {}),
+			(info) => (info ? formatSessionInfo(info) : "No active Chrome recording. Use chrome_start to begin."),
+		),
 	);
 
 	// Tool: chrome_mark
@@ -212,10 +200,7 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			"Focus on a specific marker with around_marker.",
 		{
 			session_id: z.string().describe("Session ID from session_list"),
-			include: z
-				.array(OverviewIncludeSchema)
-				.optional()
-				.describe("What to include. Default: all"),
+			include: z.array(OverviewIncludeSchema).optional().describe("What to include. Default: all"),
 			around_marker: z.string().optional().describe("Center overview on this marker ID"),
 			time_range: z
 				.object({
@@ -249,10 +234,7 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 		{
 			session_id: z.string().describe("Session ID"),
 			query: z.string().optional().describe("Natural language search query, e.g. 'validation error' or 'phone format'"),
-			event_types: z
-				.array(SearchableEventTypeSchema)
-				.optional()
-				.describe("Filter by event type"),
+			event_types: z.array(SearchableEventTypeSchema).optional().describe("Filter by event type"),
 			status_codes: z.array(z.number()).optional().describe("Filter network responses by HTTP status code, e.g. [400, 422, 500]"),
 			time_range: z
 				.object({
@@ -308,10 +290,7 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			event_id: z.string().optional().describe("Specific event ID (from session_search results)"),
 			marker_id: z.string().optional().describe("Jump to a marker"),
 			timestamp: z.string().optional().describe("ISO timestamp — inspect the moment closest to this time"),
-			include: z
-				.array(InspectIncludeSchema)
-				.optional()
-				.describe("What to include alongside the event detail. Default: all"),
+			include: z.array(InspectIncludeSchema).optional().describe("What to include alongside the event detail. Default: all"),
 			context_window: z.number().optional().describe("Seconds of surrounding events to include. Default: 5"),
 			token_budget: z.number().optional().describe("Max tokens for the response. Default: 3000"),
 		},
@@ -319,7 +298,7 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			const result = queryEngine.inspect(session_id, {
 				eventId: event_id,
 				markerId: marker_id,
-				timestamp: timestamp ? new Date(timestamp).getTime() : undefined,
+				timestamp: timestamp ?? undefined,
 				include: include as InspectParams["include"],
 				contextWindow: context_window ?? 5,
 			});
@@ -337,10 +316,7 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 			session_id: z.string().describe("Session ID"),
 			from: z.string().describe("First moment — timestamp (ISO or HH:MM:SS) or event ID"),
 			to: z.string().describe("Second moment — timestamp (ISO or HH:MM:SS) or event ID"),
-			include: z
-				.array(DiffIncludeSchema)
-				.optional()
-				.describe("What to diff. Default: form_state, storage, url, console_new, network_new (framework_state must be explicitly requested)"),
+			include: z.array(DiffIncludeSchema).optional().describe("What to diff. Default: form_state, storage, url, console_new, network_new (framework_state must be explicitly requested)"),
 			token_budget: z.number().optional().describe("Max tokens. Default: 2000"),
 		},
 		toolHandler(async ({ session_id, from, to, include, token_budget }) => {
@@ -366,8 +342,7 @@ export function registerBrowserTools(server: McpServer, queryEngine: QueryEngine
 				})
 				.optional()
 				.describe("Focus on a specific time window"),
-			format: ReplayFormatSchema
-				.describe("Output format: 'summary' for overview, 'reproduction_steps' for step-by-step, 'test_scaffold' for automated test code"),
+			format: ReplayFormatSchema.describe("Output format: 'summary' for overview, 'reproduction_steps' for step-by-step, 'test_scaffold' for automated test code"),
 			test_framework: TestFrameworkSchema.optional().describe("Test framework for scaffold generation. Default: playwright"),
 		},
 		toolHandler(async ({ session_id, around_marker, time_range, format, test_framework }) => {

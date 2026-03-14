@@ -1,4 +1,5 @@
 import type { QueryEngine } from "./query-engine.js";
+import { resolveTimestamp } from "./resolve-timestamp.js";
 
 export interface DiffParams {
 	sessionId: string;
@@ -62,8 +63,8 @@ export class SessionDiffer {
 	constructor(private queryEngine: QueryEngine) {}
 
 	diff(params: DiffParams): DiffResult {
-		const beforeTs = this.resolveTimestamp(params.sessionId, params.before);
-		const afterTs = this.resolveTimestamp(params.sessionId, params.after);
+		const beforeTs = resolveTimestamp(this.queryEngine, params.sessionId, params.before);
+		const afterTs = resolveTimestamp(this.queryEngine, params.sessionId, params.after);
 
 		const result: DiffResult = {
 			beforeTime: beforeTs,
@@ -325,22 +326,5 @@ export class SessionDiffer {
 			storeMutations: storeMutations.length > 0 ? storeMutations : undefined,
 			frameworkErrors: frameworkErrors.length > 0 ? frameworkErrors : undefined,
 		};
-	}
-
-	resolveTimestamp(sessionId: string, ref: string): number {
-		// If it looks like an ISO timestamp (YYYY-MM-DD or contains T+zone), parse it
-		if (/^\d{4}-\d{2}-\d{2}/.test(ref) || (ref.includes("T") && ref.includes("-"))) {
-			return new Date(ref).getTime();
-		}
-		// If it looks like a time (HH:MM:SS), resolve relative to session start
-		if (ref.match(/^\d{2}:\d{2}/)) {
-			const session = this.queryEngine.getSession(sessionId);
-			const sessionDate = new Date(session.started_at).toISOString().slice(0, 10);
-			return new Date(`${sessionDate}T${ref}`).getTime();
-		}
-		// Otherwise treat as event_id
-		const event = this.queryEngine.getFullEvent(sessionId, ref);
-		if (event) return event.timestamp;
-		throw new Error(`Cannot resolve "${ref}" to a timestamp or event`);
 	}
 }

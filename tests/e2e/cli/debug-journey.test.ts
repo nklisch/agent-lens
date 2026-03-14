@@ -85,14 +85,14 @@ describe.skipIf(SKIP_NO_DEBUGPY)("E2E CLI: debug journey — JSON envelope", () 
 		activeSessions.pop();
 	});
 
-	it("breakpoints set/list with --json envelope", async () => {
+	it("breakpoints set/list/clear with --json envelope", async () => {
 		const launch = await runCliJson(["debug", "launch", `python3 ${SIMPLE_LOOP}`, "--stop-on-entry", "--json"]);
 		if (!launch.ok) throw new Error("launch failed");
 		const sid = launch.data.sessionId;
 		activeSessions.push(sid);
 
-		// Set breakpoint
-		const setBp = await runCliJson(["debug", "break", `${SIMPLE_LOOP}:6`, "--session", sid, "--json"]);
+		// Set breakpoint (uses --breakpoint flag since positional was changed to string)
+		const setBp = await runCliJson(["debug", "break", "--breakpoint", `${SIMPLE_LOOP}:6`, "--session", sid, "--json"]);
 		expect(setBp.ok).toBe(true);
 		if (!setBp.ok) throw new Error("break set failed");
 		expect(setBp.data.file).toContain("simple-loop.py");
@@ -102,6 +102,16 @@ describe.skipIf(SKIP_NO_DEBUGPY)("E2E CLI: debug journey — JSON envelope", () 
 		// List breakpoints
 		const listBp = await runCliJson(["debug", "breakpoints", "--session", sid, "--json"]);
 		expect(listBp.ok).toBe(true);
+
+		// Clear breakpoints (exercises the --clear flag fix)
+		const clearBp = await runCliJson(["debug", "break", "--clear", SIMPLE_LOOP, "--session", sid, "--json"]);
+		expect(clearBp.ok).toBe(true);
+		if (!clearBp.ok) throw new Error("break clear failed");
+		expect(clearBp.data.cleared).toContain("simple-loop.py");
+
+		// Verify breakpoints are gone after clear
+		const listAfterClear = await runCliJson(["debug", "breakpoints", "--session", sid, "--json"]);
+		expect(listAfterClear.ok).toBe(true);
 
 		await runCli(["debug", "stop", "--session", sid]);
 		activeSessions.pop();

@@ -353,7 +353,7 @@ export const breakCommand = defineCommand({
 	},
 	args: {
 		breakpoint: {
-			type: "positional",
+			type: "string",
 			description: "Breakpoint spec: 'file:line[,line] [when cond] [hit cond] [log msg]'",
 		},
 		exceptions: {
@@ -398,7 +398,7 @@ export const breakCommand = defineCommand({
 				});
 				process.stdout.write(`${formatBreakpointsSet(parsed.file, result, mode)}\n`);
 			} else {
-				throw new Error("Usage: krometrail debug break <file:line> | --exceptions <filter> | --clear <file>");
+				throw new Error("Usage: krometrail debug break --breakpoint <file:line> | --exceptions <filter> | --clear <file>");
 			}
 		});
 	},

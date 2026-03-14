@@ -111,6 +111,17 @@ describe.skipIf(SKIP)("E2E CLI: browser recording lifecycle — JSON envelope", 
 		}
 	});
 
+	it("browser inspect via MCP with relative timestamp", async () => {
+		// This exercises the HH:MM:SS resolveTimestamp fix (Bug 2)
+		const result = await ctx.callTool("session_inspect", {
+			session_id: sessionId,
+			timestamp: "00:00:03",
+			include: ["surrounding_events"],
+			context_window: 5,
+		});
+		expect(result).toBeTruthy();
+	});
+
 	it("browser diff via MCP compares two moments", async () => {
 		const result = await ctx.callTool("session_diff", {
 			session_id: sessionId,

@@ -4,6 +4,7 @@ import type { InspectInclude, OverviewInclude } from "../../core/enums.js";
 import type { BrowserDatabase, EventRow, MarkerRow, NetworkBodyRow, SessionRow } from "../storage/database.js";
 import { EventWriter } from "../storage/event-writer.js";
 import type { RecordedEvent } from "../types.js";
+import { resolveTimestamp } from "./resolve-timestamp.js";
 
 export class QueryEngine {
 	constructor(
@@ -208,8 +209,9 @@ export class QueryEngine {
 			if (!events[0]) throw new Error(`No events found near marker ${params.markerId}`);
 			targetEvent = events[0];
 		} else if (params.timestamp !== undefined) {
+			const ts = resolveTimestamp(this, sessionId, params.timestamp);
 			const events = this.db.queryEvents(sessionId, {
-				timeRange: { start: params.timestamp - 500, end: params.timestamp + 500 },
+				timeRange: { start: ts - 500, end: ts + 500 },
 				limit: 1,
 			});
 			if (!events[0]) throw new Error(`No events found near timestamp ${params.timestamp}`);
@@ -441,7 +443,7 @@ export interface SearchParams {
 export interface InspectParams {
 	eventId?: string;
 	markerId?: string;
-	timestamp?: number;
+	timestamp?: string; // ISO, HH:MM:SS, event_id, or epoch ms as string
 	include?: InspectInclude[];
 	contextWindow?: number; // seconds
 }

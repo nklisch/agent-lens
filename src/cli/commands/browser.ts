@@ -349,7 +349,7 @@ export const browserInspectCommand = defineCommand({
 				sessionId: args.id,
 				eventId: args.event,
 				markerId: args.marker,
-				timestamp: args.timestamp ? new Date(args.timestamp).getTime() : undefined,
+				timestamp: args.timestamp ?? undefined,
 				include: splitComma(args.include),
 				contextWindow: args["context-window"] ? Number.parseInt(args["context-window"], 10) : 5,
 				tokenBudget: args["token-budget"] ? Number.parseInt(args["token-budget"], 10) : 3000,

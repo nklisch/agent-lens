@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { SessionDiffer } from "../../../src/browser/investigation/diff.js";
 import type { QueryEngine } from "../../../src/browser/investigation/query-engine.js";
+import { resolveTimestamp } from "../../../src/browser/investigation/resolve-timestamp.js";
 import type { EventRow } from "../../../src/browser/storage/database.js";
 import type { RecordedEvent } from "../../../src/browser/types.js";
 
@@ -84,17 +85,17 @@ describe("SessionDiffer", () => {
 
 	describe("resolveTimestamp", () => {
 		it("parses ISO timestamp", () => {
-			const ts = differ.resolveTimestamp(SESSION_ID, "2024-01-15T10:30:00Z");
+			const ts = resolveTimestamp(queryEngine, SESSION_ID, "2024-01-15T10:30:00Z");
 			expect(ts).toBe(new Date("2024-01-15T10:30:00Z").getTime());
 		});
 
 		it("parses HH:MM:SS relative to session date", () => {
-			const ts = differ.resolveTimestamp(SESSION_ID, "14:31:45");
+			const ts = resolveTimestamp(queryEngine, SESSION_ID, "14:31:45");
 			expect(ts).toBe(new Date(`${BASE_DATE}T14:31:45`).getTime());
 		});
 
 		it("parses HH:MM relative to session date", () => {
-			const ts = differ.resolveTimestamp(SESSION_ID, "14:31");
+			const ts = resolveTimestamp(queryEngine, SESSION_ID, "14:31");
 			expect(ts).toBe(new Date(`${BASE_DATE}T14:31`).getTime());
 		});
 
@@ -104,8 +105,7 @@ describe("SessionDiffer", () => {
 				getFullEvent: () => makeFullEvent({ timestamp: eventTs }),
 				getSession: queryEngine.getSession,
 			});
-			const d = new SessionDiffer(qe);
-			const ts = d.resolveTimestamp(SESSION_ID, "some-event-id");
+			const ts = resolveTimestamp(qe, SESSION_ID, "some-event-id");
 			expect(ts).toBe(eventTs);
 		});
 
@@ -114,8 +114,7 @@ describe("SessionDiffer", () => {
 				getFullEvent: () => null,
 				getSession: queryEngine.getSession,
 			});
-			const d = new SessionDiffer(qe);
-			expect(() => d.resolveTimestamp(SESSION_ID, "bad-event-id")).toThrow();
+			expect(() => resolveTimestamp(qe, SESSION_ID, "bad-event-id")).toThrow();
 		});
 	});
 

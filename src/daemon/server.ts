@@ -473,7 +473,7 @@ export class DaemonServer {
 				const result = this.getQueryEngine().inspect(p.sessionId, {
 					eventId: p.eventId,
 					markerId: p.markerId,
-					timestamp: p.timestamp,
+					timestamp: p.timestamp !== undefined ? String(p.timestamp) : undefined,
 					include: p.include,
 					contextWindow: p.contextWindow,
 				});
