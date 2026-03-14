@@ -30,6 +30,26 @@ const main = defineCommand({
 		version: "0.1.0",
 		description: "Runtime debugging viewport for AI coding agents",
 	},
+	args: {
+		mcp: {
+			type: "boolean",
+			description: "Start as an MCP server on stdio instead of running the CLI",
+			default: false,
+		},
+		tools: {
+			type: "string",
+			description: "Comma-separated tool groups to expose (debug, browser). Default: all. Only used with --mcp.",
+		},
+	},
+	async run({ args }) {
+		if (args.mcp) {
+			const { startMcpServer } = await import("../mcp/index.js");
+			const { parseToolGroups } = await import("../mcp/tool-groups.js");
+			await startMcpServer({ toolGroups: parseToolGroups(args.tools) });
+			return;
+		}
+		// citty shows help by default when no subcommand given
+	},
 	subCommands: {
 		launch: launchCommand,
 		attach: attachCommand,

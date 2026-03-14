@@ -9,32 +9,52 @@ import { BrowserDatabase } from "../browser/storage/database.js";
 import { createSessionManager } from "../core/session-manager.js";
 import { setupGracefulShutdown } from "../core/shutdown.js";
 import { registerAllDetectors } from "../frameworks/index.js";
+import { parseToolGroups, type ToolGroup } from "./tool-groups.js";
 import { registerBrowserTools } from "./tools/browser.js";
 import { registerTools } from "./tools/index.js";
 
-registerAllAdapters();
-registerAllDetectors();
-const sessionManager = createSessionManager();
+export interface McpServerOptions {
+	toolGroups?: Set<ToolGroup>;
+}
 
-const server = new McpServer({
-	name: "bugscope",
-	version: "0.1.0",
-});
+/**
+ * Create, configure, and start the MCP server on stdio.
+ * Resolves when the transport disconnects.
+ */
+export async function startMcpServer(options: McpServerOptions = {}): Promise<void> {
+	const toolGroups = options.toolGroups ?? parseToolGroups(process.env.BUGSCOPE_TOOLS);
 
-registerTools(server, sessionManager);
+	registerAllAdapters();
+	registerAllDetectors();
 
-// Browser investigation tools — instantiate QueryEngine pointing at the shared database.
-// BrowserDatabase creates the file and schema if it doesn't exist, so this is always safe.
-const browserDataDir = process.env.BUGSCOPE_BROWSER_DATA_DIR ?? resolve(homedir(), ".bugscope", "browser");
-mkdirSync(browserDataDir, { recursive: true });
-const browserDb = new BrowserDatabase(resolve(browserDataDir, "index.db"));
-const browserQueryEngine = new QueryEngine(browserDb, browserDataDir);
-registerBrowserTools(server, browserQueryEngine);
+	const server = new McpServer({
+		name: "bugscope",
+		version: "0.1.0",
+	});
 
-setupGracefulShutdown(() => {
-	browserDb.close();
-	return sessionManager.disposeAll();
-});
+	let sessionManager: ReturnType<typeof createSessionManager> | undefined;
+	if (toolGroups.has("debug")) {
+		sessionManager = createSessionManager();
+		registerTools(server, sessionManager);
+	}
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
+	let browserDb: BrowserDatabase | undefined;
+	if (toolGroups.has("browser")) {
+		const browserDataDir = process.env.BUGSCOPE_BROWSER_DATA_DIR ?? resolve(homedir(), ".bugscope", "browser");
+		mkdirSync(browserDataDir, { recursive: true });
+		browserDb = new BrowserDatabase(resolve(browserDataDir, "index.db"));
+		const browserQueryEngine = new QueryEngine(browserDb, browserDataDir);
+		registerBrowserTools(server, browserQueryEngine);
+	}
+
+	setupGracefulShutdown(() => {
+		browserDb?.close();
+		return sessionManager?.disposeAll() ?? Promise.resolve();
+	});
+
+	const transport = new StdioServerTransport();
+	await server.connect(transport);
+}
+
+// When run directly (bun run src/mcp/index.ts), start with env-based config
+startMcpServer();
