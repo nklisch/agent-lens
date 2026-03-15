@@ -54,7 +54,31 @@
 		"vitest": "^4",
 		"vue": "^3.5.30"
 	},
+	"homepage": "https://krometrail.dev",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/nklisch/krometrail.git"
+	},
+	"bugs": {
+		"url": "https://github.com/nklisch/krometrail/issues"
+	},
+	"author": "Nathan Klisch",
 	"license": "MIT",
+	"keywords": [
+		"debugger",
+		"debugging",
+		"ai",
+		"mcp",
+		"dap",
+		"debug-adapter-protocol",
+		"model-context-protocol",
+		"runtime",
+		"breakpoints",
+		"ai-agents",
+		"coding-agents",
+		"cli",
+		"viewport"
+	],
 	"trustedDependencies": [
 		"@biomejs/biome",
 		"better-sqlite3"
