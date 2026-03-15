@@ -4,6 +4,7 @@ import { browserCommand } from "./commands/browser.js";
 import { commandsCommand } from "./commands/commands.js";
 import { debugCommand } from "./commands/debug.js";
 import { doctorCommand } from "./commands/doctor.js";
+import { sendPing } from "../telemetry.js";
 
 const main = defineCommand({
 	meta: {
@@ -24,11 +25,13 @@ const main = defineCommand({
 	},
 	async run({ args }) {
 		if (args.mcp) {
+			sendPing("mcp_start"); // fire-and-forget
 			const { startMcpServer } = await import("../mcp/index.js");
 			const { parseToolGroups } = await import("../mcp/tool-groups.js");
 			await startMcpServer({ toolGroups: parseToolGroups(args.tools) });
 			return;
 		}
+		sendPing("run"); // fire-and-forget
 		// citty shows help by default when no subcommand given
 	},
 	subCommands: {
