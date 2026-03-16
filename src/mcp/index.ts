@@ -7,6 +7,7 @@ import pkg from "../../package.json";
 import { registerAllAdapters } from "../adapters/registry.js";
 import { QueryEngine } from "../browser/investigation/query-engine.js";
 import { BrowserDatabase } from "../browser/storage/database.js";
+import { performAutoUpdate } from "../core/auto-update.js";
 import { createSessionManager } from "../core/session-manager.js";
 import { setupGracefulShutdown } from "../core/shutdown.js";
 import { registerAllDetectors } from "../frameworks/index.js";
@@ -52,6 +53,8 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
 		browserDb?.close();
 		return sessionManager?.disposeAll() ?? Promise.resolve();
 	});
+
+	performAutoUpdate(); // fire-and-forget
 
 	const transport = new StdioServerTransport();
 	await server.connect(transport);

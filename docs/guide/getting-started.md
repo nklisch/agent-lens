@@ -48,7 +48,7 @@ Add Krometrail to your agent's MCP config to expose all tools automatically:
 	"mcpServers": {
 		"krometrail": {
 			"command": "bunx",
-			"args": ["krometrail", "--mcp"]
+			"args": ["krometrail@latest", "--mcp"]
 		}
 	}
 }

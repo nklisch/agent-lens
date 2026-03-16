@@ -12,7 +12,7 @@ Krometrail exposes all its capabilities as MCP tools. Once configured, agents di
 Add to `.mcp.json` in your project root (shared with your team), or use the CLI:
 
 ```bash
-claude mcp add --transport stdio --scope project krometrail -- npx krometrail --mcp
+claude mcp add --transport stdio --scope project krometrail -- npx krometrail@latest --mcp
 ```
 
 ::: code-group
@@ -22,7 +22,7 @@ claude mcp add --transport stdio --scope project krometrail -- npx krometrail --
 	"mcpServers": {
 		"krometrail": {
 			"command": "bunx",
-			"args": ["krometrail", "--mcp"]
+			"args": ["krometrail@latest", "--mcp"]
 		}
 	}
 }
@@ -33,7 +33,7 @@ claude mcp add --transport stdio --scope project krometrail -- npx krometrail --
 	"mcpServers": {
 		"krometrail": {
 			"command": "npx",
-			"args": ["krometrail", "--mcp"]
+			"args": ["krometrail@latest", "--mcp"]
 		}
 	}
 }
@@ -63,7 +63,7 @@ Add to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` in your project root:
 	"mcpServers": {
 		"krometrail": {
 			"command": "npx",
-			"args": ["krometrail", "--mcp"]
+			"args": ["krometrail@latest", "--mcp"]
 		}
 	}
 }
@@ -80,7 +80,7 @@ Add to `~/.codeium/windsurf/mcp_config.json` or click the MCPs icon in Cascade a
 	"mcpServers": {
 		"krometrail": {
 			"command": "npx",
-			"args": ["krometrail", "--mcp"],
+			"args": ["krometrail@latest", "--mcp"],
 			"env": {}
 		}
 	}
@@ -94,13 +94,13 @@ Add to `~/.codex/config.toml` (global) or `.codex/config.toml` in your project:
 ```toml
 [mcp_servers.krometrail]
 command = "npx"
-args = ["krometrail", "--mcp"]
+args = ["krometrail@latest", "--mcp"]
 ```
 
 Or add via the CLI:
 
 ```bash
-codex mcp add krometrail -- npx krometrail --mcp
+codex mcp add krometrail -- npx krometrail@latest --mcp
 ```
 
 Codex also supports the CLI path — install the krometrail skill:
@@ -117,10 +117,10 @@ Expose only the tool groups you need, reducing the agent's tool list:
 
 ```bash
 # Debug tools only
-claude mcp add --transport stdio --scope project krometrail-debug -- npx krometrail --mcp --tools debug
+claude mcp add --transport stdio --scope project krometrail-debug -- npx krometrail@latest --mcp --tools debug
 
 # Browser tools only
-claude mcp add --transport stdio --scope project krometrail-browser -- npx krometrail --mcp --tools browser
+claude mcp add --transport stdio --scope project krometrail-browser -- npx krometrail@latest --mcp --tools browser
 ```
 
 ### Cursor / Windsurf / manual `.mcp.json`
@@ -130,11 +130,11 @@ claude mcp add --transport stdio --scope project krometrail-browser -- npx krome
 	"mcpServers": {
 		"krometrail-debug": {
 			"command": "npx",
-			"args": ["krometrail", "--mcp", "--tools", "debug"]
+			"args": ["krometrail@latest", "--mcp", "--tools", "debug"]
 		},
 		"krometrail-browser": {
 			"command": "npx",
-			"args": ["krometrail", "--mcp", "--tools", "browser"]
+			"args": ["krometrail@latest", "--mcp", "--tools", "browser"]
 		}
 	}
 }
@@ -144,10 +144,10 @@ claude mcp add --transport stdio --scope project krometrail-browser -- npx krome
 
 ```bash
 # Debug tools only
-codex mcp add krometrail-debug -- npx krometrail --mcp --tools debug
+codex mcp add krometrail-debug -- npx krometrail@latest --mcp --tools debug
 
 # Browser tools only
-codex mcp add krometrail-browser -- npx krometrail --mcp --tools browser
+codex mcp add krometrail-browser -- npx krometrail@latest --mcp --tools browser
 ```
 
 Available tool groups: `debug`, `browser`, `session`, `all` (default).
@@ -157,3 +157,28 @@ Available tool groups: `debug`, `browser`, `session`, `all` (default).
 Ask your agent: "What debug tools do you have available?" It should list `debug_launch`, `debug_continue`, `debug_evaluate`, and other tools.
 
 Run `krometrail doctor` in a terminal to confirm which language adapters are installed.
+
+## Auto-Updates
+
+Krometrail checks for updates on every MCP server startup and updates itself
+automatically. Updates take effect the next time the server starts.
+
+- **Binary installs** download the latest release from GitHub
+- **npx/bunx** uses the `@latest` tag (no download needed)
+- **Global npm/bun** runs the package manager's update command
+
+To disable auto-updates, set the environment variable in your MCP config:
+
+```json
+{
+  "mcpServers": {
+    "krometrail": {
+      "command": "krometrail",
+      "args": ["--mcp"],
+      "env": {
+        "KROMETRAIL_NO_UPDATE": "1"
+      }
+    }
+  }
+}
+```
